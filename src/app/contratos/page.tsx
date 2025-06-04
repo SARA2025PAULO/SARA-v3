@@ -33,7 +33,7 @@ export default function ContratosPage() {
   const { toast } = useToast();
   
   const [contracts, setContracts] = useState<Contract[]>([]);
-  const [landlordProperties, setLandlordProperties] = useState<Property[]>([]); // For landlord to select when creating contract
+  const [landlordProperties, setLandlordProperties] = useState<Property[]>([]); 
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -47,12 +47,11 @@ export default function ContratosPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"todos" | Contract["status"]>("todos");
 
-  // Fetch properties for landlord to select
   const fetchLandlordProperties = useCallback(async () => {
     if (currentUser && currentUser.role === "Arrendador" && db) {
       try {
         const propsRef = collection(db, "users", currentUser.uid, "properties");
-        const qProps = query(propsRef, where("status", "in", ["Disponible", "Arrendada"])); // Allow selecting already rented if editing same contract
+        const qProps = query(propsRef, where("status", "in", ["Disponible", "Arrendada"])); 
         const propsSnapshot = await getDocs(qProps);
         const fetchedProps = propsSnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Property));
         setLandlordProperties(fetchedProps);
@@ -63,7 +62,6 @@ export default function ContratosPage() {
     }
   }, [currentUser, toast]);
 
-  // Fetch contracts based on user role
   const fetchContracts = useCallback(async () => {
     if (!currentUser || !db) {
       setIsLoading(false);
@@ -89,10 +87,12 @@ export default function ContratosPage() {
         return {
           id: docSnap.id,
           ...data,
-          startDate: data.startDate, // Assumes stored as ISO string or Firestore Timestamp converted
+          startDate: data.startDate, 
           endDate: data.endDate,
           createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt,
           updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : data.updatedAt,
+          securityDepositAmount: data.securityDepositAmount,
+          paymentDay: data.paymentDay,
         } as Contract;
       });
       setContracts(fetchedContracts);
@@ -119,7 +119,6 @@ export default function ContratosPage() {
     setIsSubmitting(true);
 
     try {
-      // 1. Find Tenant UID by email
       const usersRef = collection(db, "users");
       const tenantQuery = query(usersRef, where("email", "==", values.tenantEmail), where("role", "==", "Inquilino"), limit(1));
       const tenantSnapshot = await getDocs(tenantQuery);
@@ -133,7 +132,6 @@ export default function ContratosPage() {
       const tenantProfile = tenantDoc.data() as UserProfile;
       const tenantUid = tenantDoc.id;
 
-      // 2. Get selected property details (mainly for propertyName)
       const selectedProperty = landlordProperties.find(p => p.id === values.propertyId);
       if (!selectedProperty) {
           toast({ title: "Error", description: "Propiedad seleccionada no válida.", variant: "destructive" });
@@ -141,33 +139,41 @@ export default function ContratosPage() {
           return;
       }
 
-      const contractData = {
+      const contractData: Omit<Contract, 'id' | 'createdAt' | 'updatedAt'> & { updatedAt: any } = {
         propertyId: values.propertyId,
         propertyName: selectedProperty.address,
         tenantId: tenantUid,
         tenantEmail: values.tenantEmail,
-        tenantName: tenantProfile.displayName || values.tenantName, // Use profile name or fallback to form input
+        tenantName: tenantProfile.displayName || values.tenantName, 
         landlordId: currentUser.uid,
         landlordName: currentUser.displayName,
         startDate: values.startDate.toISOString(),
         endDate: values.endDate.toISOString(),
         rentAmount: values.rentAmount,
+        securityDepositAmount: values.securityDepositAmount === '' || values.securityDepositAmount === undefined ? undefined : Number(values.securityDepositAmount),
+        paymentDay: values.paymentDay === '' || values.paymentDay === undefined ? undefined : Number(values.paymentDay),
         terms: values.terms || "",
-        status: isEditingFlag && editingContract ? editingContract.status : "Pendiente", // Preserve status on edit, else Pendiente
+        status: isEditingFlag && editingContract ? editingContract.status : "Pendiente",
         updatedAt: serverTimestamp(),
       };
+      
+      // Remove undefined fields before saving to Firestore
+      const cleanedContractData = Object.fromEntries(
+        Object.entries(contractData).filter(([_, v]) => v !== undefined)
+      );
+
 
       if (isEditingFlag && originalContractId) {
         const contractDocRef = doc(db, "contracts", originalContractId);
-        await updateDoc(contractDocRef, contractData);
+        await updateDoc(contractDocRef, cleanedContractData);
         toast({ title: "Contrato Actualizado", description: `El contrato para ${selectedProperty.address} ha sido guardado.` });
       } else {
-        const finalContractData = { ...contractData, createdAt: serverTimestamp() };
+        const finalContractData = { ...cleanedContractData, createdAt: serverTimestamp() };
         await addDoc(collection(db, "contracts"), finalContractData);
         toast({ title: "Contrato Creado", description: `Nuevo contrato para ${selectedProperty.address} está ${finalContractData.status}.` });
       }
       
-      fetchContracts(); // Refresh contracts list
+      fetchContracts(); 
       setIsContractFormOpen(false);
       setEditingContract(null);
 
@@ -193,7 +199,7 @@ export default function ContratosPage() {
         description: `El contrato ha sido marcado como ${newStatus.toLowerCase()}.`,
         className: newStatus === "Activo" ? "bg-accent text-accent-foreground" : undefined,
       });
-      fetchContracts(); // Refresh list
+      fetchContracts(); 
       setIsApprovalDialogOpen(false);
     } catch (error) {
       console.error(`Error ${newStatus === "Activo" ? "approving" : "rejecting"} contract:`, error);
@@ -305,14 +311,14 @@ export default function ContratosPage() {
         />
       )}
       
-      {contractToApprove && ( // No role check needed here, dialog handles content based on what's passed
+      {contractToApprove && ( 
         <ContractApprovalDialog
           contract={contractToApprove}
           open={isApprovalDialogOpen}
           onOpenChange={setIsApprovalDialogOpen}
           onApprove={() => handleApprovalAction(contractToApprove.id, "Activo")}
           onReject={() => handleApprovalAction(contractToApprove.id, "Rechazado")}
-          // Pass isSubmitting to disable buttons in dialog if needed
+          isSubmitting={isSubmitting}
         />
       )}
     </div>

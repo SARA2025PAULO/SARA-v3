@@ -12,14 +12,14 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import type { Contract } from "@/types";
-import { FileText, CalendarDays, DollarSign, CheckCircle, XCircle, User } from "lucide-react";
+import { FileText, CalendarDays, DollarSign, CheckCircle, XCircle, User, ShieldCheck, Receipt } from "lucide-react";
 
 interface ContractApprovalDialogProps {
   contract: Contract | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onApprove: () => void; // Simplified, ID is known in parent
-  onReject: () => void;  // Simplified, ID is known in parent
+  onApprove: () => void; 
+  onReject: () => void;  
   isSubmitting?: boolean;
 }
 
@@ -30,22 +30,30 @@ export function ContractApprovalDialog({ contract, open, onOpenChange, onApprove
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent>
+      <AlertDialogContent className="max-w-lg">
         <AlertDialogHeader>
           <AlertDialogTitle className="font-headline text-2xl">Revisar Contrato</AlertDialogTitle>
           <AlertDialogDescription>
             Por favor, revisa los detalles del contrato para la propiedad <span className="font-semibold">{contract.propertyName || contract.propertyId}</span>.
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <div className="space-y-3 py-4 text-sm">
-          <p className="flex items-center"><FileText className="h-4 w-4 mr-2 text-primary" /> <strong>Propiedad:</strong> {contract.propertyName || contract.propertyId}</p>
-          <p className="flex items-center"><User className="h-4 w-4 mr-2 text-primary" /> <strong>Arrendador:</strong> {contract.landlordName || contract.landlordId}</p>
-          <p className="flex items-center"><CalendarDays className="h-4 w-4 mr-2 text-primary" /> <strong>Periodo:</strong> {formatDate(contract.startDate)} - {formatDate(contract.endDate)}</p>
-          <p className="flex items-center"><DollarSign className="h-4 w-4 mr-2 text-primary" /> <strong>Monto Mensual:</strong> ${contract.rentAmount.toLocaleString('es-CL')}</p>
+        <div className="space-y-3 py-4 text-sm max-h-[60vh] overflow-y-auto pr-2">
+          <p className="flex items-center"><FileText className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <strong>Propiedad:</strong> {contract.propertyName || contract.propertyId}</p>
+          <p className="flex items-center"><User className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <strong>Arrendador:</strong> {contract.landlordName || contract.landlordId}</p>
+          <p className="flex items-center"><CalendarDays className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <strong>Periodo:</strong> {formatDate(contract.startDate)} - {formatDate(contract.endDate)}</p>
+          <p className="flex items-center"><DollarSign className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <strong>Monto Arriendo Mensual:</strong> ${contract.rentAmount.toLocaleString('es-CL')}</p>
+          {contract.securityDepositAmount !== undefined && (
+            <p className="flex items-center"><ShieldCheck className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <strong>Monto Garantía:</strong> ${contract.securityDepositAmount.toLocaleString('es-CL')}</p>
+          )}
+          {contract.paymentDay && (
+             <p className="flex items-center"><Receipt className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <strong>Día de Pago:</strong> {contract.paymentDay} de cada mes</p>
+          )}
           {contract.terms && (
             <div>
-              <p className="font-semibold mt-2">Términos Adicionales:</p>
-              <p className="text-xs text-muted-foreground p-2 border rounded-md bg-muted/50 whitespace-pre-wrap">{contract.terms}</p>
+              <p className="font-semibold mt-2 mb-1">Términos Adicionales:</p>
+              <div className="text-xs text-muted-foreground p-2 border rounded-md bg-muted/50 whitespace-pre-wrap max-h-32 overflow-y-auto">
+                {contract.terms}
+              </div>
             </div>
           )}
         </div>

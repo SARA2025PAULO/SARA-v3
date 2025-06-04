@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Building2, FileText, PlusCircle, Bell } from "lucide-react";
-import type { Property, Contract } from "@/types"; // Assuming these types are defined
+import type { Property, Contract } from "@/types"; 
 import Image from "next/image";
 
 // Mock data - replace with actual data fetching
@@ -15,7 +15,7 @@ const mockProperties: Property[] = [
 ];
 
 const mockContracts: Contract[] = [
-  { id: "c1", propertyId: "1", tenantId: "tenant1", landlordId: "landlord1", startDate: "2023-01-01", endDate: "2023-12-31", rentAmount: 750000, status: "Activo", propertyName: "Av. Siempre Viva 742", createdAt: "2023-01-01" },
+  { id: "c1", propertyId: "1", tenantId: "tenant1", landlordId: "landlord1", startDate: "2023-01-01", endDate: "2023-12-31", rentAmount: 750000, securityDepositAmount: 750000, paymentDay: 5, status: "Activo", propertyName: "Av. Siempre Viva 742", createdAt: "2023-01-01", tenantEmail: "tenant@example.com" },
 ];
 
 export function LandlordDashboard() {
@@ -76,7 +76,7 @@ export function LandlordDashboard() {
               </Link>
             </Button>
             <Button asChild className="w-full justify-start" size="lg">
-              <Link href="/propiedades#nueva">
+              <Link href="/propiedades#nueva"> {/* This might need to trigger the dialog instead of hash */}
                 <PlusCircle className="mr-2 h-5 w-5" /> Añadir Nueva Propiedad
               </Link>
             </Button>
@@ -86,7 +86,7 @@ export function LandlordDashboard() {
               </Link>
             </Button>
              <Button asChild className="w-full justify-start" size="lg">
-              <Link href="/contratos#nuevo">
+              <Link href="/contratos#nuevo"> {/* This might need to trigger the dialog instead of hash */}
                 <PlusCircle className="mr-2 h-5 w-5" /> Crear Nuevo Contrato
               </Link>
             </Button>

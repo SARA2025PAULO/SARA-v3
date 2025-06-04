@@ -40,8 +40,11 @@ export interface Contract {
   startDate: string; // ISO date string
   endDate: string; // ISO date string
   rentAmount: number;
+  securityDepositAmount?: number; // Monto de la garantía, opcional
+  paymentDay?: number; // Día del mes para el pago (1-31), opcional
   status: ContractStatus;
   terms?: string; // Additional contract terms
   createdAt: string; // ISO date string
   updatedAt?: string; // ISO date string for when the contract was last updated
 }
+

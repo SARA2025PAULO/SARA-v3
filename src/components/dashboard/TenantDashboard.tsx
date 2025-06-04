@@ -4,13 +4,28 @@
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Home, MessageSquare, Wallet } from "lucide-react";
+import { FileText, Home, MessageSquare, Wallet, ShieldCheck, Receipt } from "lucide-react";
 import type { Contract, Property } from "@/types";
 import Image from "next/image";
 
 // Mock data - replace with actual data fetching
 const mockTenantContracts: Contract[] = [
-  { id: "c1", propertyId: "p1", propertyName: "Av. Siempre Viva 742", landlordId: "landlord1", landlordName: "Ned Flanders", tenantId: "tenant123", startDate: "2023-08-01", endDate: "2024-07-31", rentAmount: 750000, status: "Activo", createdAt: "2023-07-15" },
+  { 
+    id: "c1", 
+    propertyId: "p1", 
+    propertyName: "Av. Siempre Viva 742", 
+    landlordId: "landlord1", 
+    landlordName: "Ned Flanders", 
+    tenantId: "tenant123", 
+    tenantEmail: "tenant@example.com",
+    startDate: "2023-08-01", 
+    endDate: "2024-07-31", 
+    rentAmount: 750000, 
+    securityDepositAmount: 750000,
+    paymentDay: 5,
+    status: "Activo", 
+    createdAt: "2023-07-15" 
+  },
 ];
 const mockPropertyDetails: Property | null = mockTenantContracts.length > 0 ? {
     id: "p1", address: "Av. Siempre Viva 742", status: "Arrendada", description: "Acogedora casa familiar con amplio jardín y garage para dos autos.", ownerId: "landlord1", imageUrl: "https://placehold.co/600x400.png", price: 750000, bedrooms: 3, bathrooms: 2, area: 150
@@ -39,14 +54,20 @@ export function TenantDashboard() {
                   <Image src={mockPropertyDetails.imageUrl || "https://placehold.co/600x400.png"} alt={mockPropertyDetails.address} width={600} height={400} className="rounded-lg mb-4 object-cover aspect-video" data-ai-hint="house exterior" />
                   <p className="text-sm text-muted-foreground">{mockPropertyDetails.description}</p>
                 </div>
-                <div className="space-y-3">
-                  <p><span className="font-semibold">Estado del Contrato:</span> <span className={`px-2 py-1 text-xs rounded-full ${currentContract.status === "Activo" ? "bg-accent/20 text-accent-foreground" : "bg-yellow-100 text-yellow-800"}`}>{currentContract.status}</span></p>
+                <div className="space-y-3 text-sm">
+                  <p><span className="font-semibold">Estado del Contrato:</span> <Badge variant={currentContract.status === "Activo" ? "default" : "secondary"} className={`${currentContract.status === "Activo" ? "bg-accent text-accent-foreground" : "bg-yellow-100 text-yellow-800"}`}>{currentContract.status}</Badge></p>
                   <p><span className="font-semibold">Propietario:</span> {currentContract.landlordName || "N/A"}</p>
-                  <p><span className="font-semibold">Renta Mensual:</span> ${currentContract.rentAmount.toLocaleString('es-CL')}</p>
-                  <p><span className="font-semibold">Inicio de Contrato:</span> {new Date(currentContract.startDate).toLocaleDateString()}</p>
-                  <p><span className="font-semibold">Fin de Contrato:</span> {new Date(currentContract.endDate).toLocaleDateString()}</p>
+                  <p className="flex items-center"><Wallet className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Renta Mensual:</span> ${currentContract.rentAmount.toLocaleString('es-CL')}</p>
+                  {currentContract.securityDepositAmount !== undefined && (
+                    <p className="flex items-center"><ShieldCheck className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Garantía:</span> ${currentContract.securityDepositAmount.toLocaleString('es-CL')}</p>
+                  )}
+                  {currentContract.paymentDay && (
+                    <p className="flex items-center"><Receipt className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Día de Pago:</span> {currentContract.paymentDay} de cada mes</p>
+                  )}
+                  <p className="flex items-center"><CalendarDays className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Inicio de Contrato:</span> {new Date(currentContract.startDate).toLocaleDateString('es-CL')}</p>
+                  <p className="flex items-center"><CalendarDays className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Fin de Contrato:</span> {new Date(currentContract.endDate).toLocaleDateString('es-CL')}</p>
                   <Button asChild className="w-full mt-4">
-                    <Link href={`/contratos/${currentContract.id}`}>
+                    <Link href={`/contratos/${currentContract.id}`}> {/* Assuming dynamic route for contract details */}
                       <FileText className="mr-2 h-4 w-4" /> Ver Detalles del Contrato
                     </Link>
                   </Button>

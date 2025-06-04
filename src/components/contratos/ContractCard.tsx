@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { Contract, UserRole } from "@/types";
-import { Eye, CheckCircle2, XCircle, Edit3, FileText, CalendarDays, User, Building } from "lucide-react";
+import { Eye, CheckCircle2, XCircle, Edit3, FileText, CalendarDays, User, Building, ShieldCheck, Receipt } from "lucide-react";
 
 interface ContractCardProps {
   contract: Contract;
@@ -33,40 +33,52 @@ export function ContractCard({ contract, userRole, onViewDetails, onApprove, onR
     }
   };
 
-  const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString();
+  const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString('es-CL');
 
   return (
-    <Card className="shadow-md hover:shadow-lg transition-shadow duration-300">
-      <CardHeader>
+    <Card className="shadow-md hover:shadow-lg transition-shadow duration-300 flex flex-col">
+      <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
-          <CardTitle className="text-lg font-semibold font-headline">Contrato: {contract.propertyName || `ID ${contract.propertyId.substring(0,8)}...`}</CardTitle>
+          <CardTitle className="text-lg font-semibold font-headline">{contract.propertyName || `ID ${contract.propertyId.substring(0,8)}...`}</CardTitle>
           <Badge className={`${getStatusVariant(contract.status)} text-xs`}>{contract.status}</Badge>
         </div>
-        <CardDescription className="text-sm text-muted-foreground">
+        <CardDescription className="text-sm text-muted-foreground pt-1">
           {userRole === "Arrendador" ? `Inquilino: ${contract.tenantName || 'N/A'}` : `Arrendador: ${contract.landlordName || 'N/A'}`}
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-2 text-sm">
+      <CardContent className="space-y-2 text-sm flex-grow">
         <div className="flex items-center">
-          <Building className="h-4 w-4 mr-2 text-primary" />
+          <Building className="h-4 w-4 mr-2 text-primary flex-shrink-0" />
           <span>Propiedad: {contract.propertyName || contract.propertyId}</span>
         </div>
         <div className="flex items-center">
-          <User className="h-4 w-4 mr-2 text-primary" />
-          <span>{userRole === "Arrendador" ? `Inquilino: ${contract.tenantName || contract.tenantId}` : `Arrendador: ${contract.landlordName || contract.landlordId}`}</span>
+          <User className="h-4 w-4 mr-2 text-primary flex-shrink-0" />
+          <span>{userRole === "Arrendador" ? `Inquilino: ${contract.tenantName || contract.tenantEmail}` : `Arrendador: ${contract.landlordName || contract.landlordId}`}</span>
         </div>
         <div className="flex items-center">
-          <CalendarDays className="h-4 w-4 mr-2 text-primary" />
+          <CalendarDays className="h-4 w-4 mr-2 text-primary flex-shrink-0" />
           <span>Duración: {formatDate(contract.startDate)} - {formatDate(contract.endDate)}</span>
         </div>
         <div className="flex items-center">
-          <FileText className="h-4 w-4 mr-2 text-primary" />
-          <span>Monto: ${contract.rentAmount.toLocaleString('es-CL')}/mes</span>
+          <FileText className="h-4 w-4 mr-2 text-primary flex-shrink-0" />
+          <span>Monto Arriendo: ${contract.rentAmount.toLocaleString('es-CL')}/mes</span>
         </div>
+        {contract.securityDepositAmount !== undefined && (
+          <div className="flex items-center">
+            <ShieldCheck className="h-4 w-4 mr-2 text-primary flex-shrink-0" />
+            <span>Garantía: ${contract.securityDepositAmount.toLocaleString('es-CL')}</span>
+          </div>
+        )}
+        {contract.paymentDay && (
+          <div className="flex items-center">
+            <Receipt className="h-4 w-4 mr-2 text-primary flex-shrink-0" />
+            <span>Día de Pago: {contract.paymentDay} de cada mes</span>
+          </div>
+        )}
       </CardContent>
-      <CardFooter className="flex justify-end space-x-2 bg-muted/30 p-4">
+      <CardFooter className="flex justify-end space-x-2 bg-muted/30 p-4 mt-auto">
         <Button variant="outline" size="sm" onClick={() => onViewDetails(contract)}>
-          <Eye className="h-4 w-4 mr-1" /> Ver Detalles
+          <Eye className="h-4 w-4 mr-1" /> Detalles
         </Button>
         {userRole === "Inquilino" && contract.status === "Pendiente" && onApprove && onReject && (
           <>

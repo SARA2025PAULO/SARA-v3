@@ -18,9 +18,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarIcon, Mail } from "lucide-react";
+import { CalendarIcon, Mail, ShieldCheck, Receipt } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Contract, Property, UserProfile } from "@/types";
+import type { Contract, Property } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
@@ -28,17 +28,19 @@ import { useToast } from "@/hooks/use-toast";
 const contractFormSchema = z.object({
   propertyId: z.string().min(1, { message: "Debes seleccionar una propiedad." }),
   tenantEmail: z.string().email({ message: "Debe ser un correo electrónico válido." }),
-  tenantName: z.string().min(2, {message: "Nombre del inquilino es requerido."}), // Fallback name if not found by email
+  tenantName: z.string().min(2, {message: "Nombre del inquilino es requerido."}), 
   startDate: z.date({ required_error: "La fecha de inicio es requerida." }),
   endDate: z.date({ required_error: "La fecha de fin es requerida." }),
   rentAmount: z.coerce.number().positive({ message: "El monto del arriendo debe ser positivo." }),
+  securityDepositAmount: z.coerce.number().nonnegative({ message: "El monto de garantía no puede ser negativo." }).optional().or(z.literal('')),
+  paymentDay: z.coerce.number().int().min(1, {message: "El día debe ser entre 1 y 31."}).max(31, {message: "El día debe ser entre 1 y 31."}).optional().or(z.literal('')),
   terms: z.string().optional(),
 }).refine(data => data.endDate > data.startDate, {
   message: "La fecha de fin debe ser posterior a la fecha de inicio.",
   path: ["endDate"],
 });
 
-type ContractFormValues = z.infer<typeof contractFormSchema>;
+export type ContractFormValues = z.infer<typeof contractFormSchema>;
 
 interface ContractFormDialogProps {
   contract?: Contract | null; // For editing
@@ -62,6 +64,8 @@ export function ContractFormDialog({ contract, open, onOpenChange, onSave, avail
       startDate: new Date(contract.startDate),
       endDate: new Date(contract.endDate),
       rentAmount: contract.rentAmount,
+      securityDepositAmount: contract.securityDepositAmount ?? undefined,
+      paymentDay: contract.paymentDay ?? undefined,
       terms: contract.terms || "",
     } : {
       propertyId: "",
@@ -70,14 +74,15 @@ export function ContractFormDialog({ contract, open, onOpenChange, onSave, avail
       startDate: undefined,
       endDate: undefined,
       rentAmount: undefined,
+      securityDepositAmount: undefined,
+      paymentDay: undefined,
       terms: "",
     },
   });
 
-  // Pre-fill tenant email if a property with potentialTenantEmail is selected
   const selectedPropertyId = form.watch("propertyId");
   useEffect(() => {
-    if (selectedPropertyId && !isEditing) { // Only prefill for new contracts
+    if (selectedPropertyId && !isEditing) { 
       const selectedProp = availableProperties.find(p => p.id === selectedPropertyId);
       if (selectedProp?.potentialTenantEmail) {
         form.setValue("tenantEmail", selectedProp.potentialTenantEmail, { shouldValidate: true });
@@ -95,19 +100,23 @@ export function ContractFormDialog({ contract, open, onOpenChange, onSave, avail
         startDate: new Date(contract.startDate),
         endDate: new Date(contract.endDate),
         rentAmount: contract.rentAmount,
+        securityDepositAmount: contract.securityDepositAmount ?? undefined,
+        paymentDay: contract.paymentDay ?? undefined,
         terms: contract.terms || "",
-      } : { // Reset for new contract
+      } : { 
         propertyId: "",
-        tenantEmail: "", // Reset tenantEmail
-        tenantName: "", // Reset tenantName
+        tenantEmail: "", 
+        tenantName: "", 
         startDate: undefined,
         endDate: undefined,
         rentAmount: undefined,
+        securityDepositAmount: undefined,
+        paymentDay: undefined,
         terms: "",
       });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contract, open]); // form.reset removed from dependencies to avoid loop with watch
+  }, [contract, open]); 
 
 
   async function onSubmit(values: ContractFormValues) {
@@ -115,9 +124,13 @@ export function ContractFormDialog({ contract, open, onOpenChange, onSave, avail
       toast({ title: "Error de Permiso", description: "No tienes permiso para esta acción.", variant: "destructive" });
       return;
     }
-    // The actual Contract object (with tenantId, landlordId etc.) will be created in contratos/page.tsx
-    onSave(values, isEditing, isEditing ? contract.id : undefined);
-    // onOpenChange(false); // This will be called in parent component after successful save
+    
+    const cleanedValues: ContractFormValues = {
+        ...values,
+        securityDepositAmount: values.securityDepositAmount === '' ? undefined : values.securityDepositAmount,
+        paymentDay: values.paymentDay === '' ? undefined : values.paymentDay,
+    };
+    onSave(cleanedValues, isEditing, isEditing ? contract.id : undefined);
   }
 
   return (
@@ -140,13 +153,12 @@ export function ContractFormDialog({ contract, open, onOpenChange, onSave, avail
                   <Select 
                     onValueChange={(value) => {
                       field.onChange(value);
-                      // If not editing, try to prefill tenantEmail from property
                       if (!isEditing) {
                          const selectedProp = availableProperties.find(p => p.id === value);
                          if (selectedProp?.potentialTenantEmail) {
                            form.setValue("tenantEmail", selectedProp.potentialTenantEmail, { shouldValidate: true });
                          } else {
-                           form.setValue("tenantEmail", "", { shouldValidate: true }); // Clear if property has no email
+                           form.setValue("tenantEmail", "", { shouldValidate: true }); 
                          }
                       }
                     }} 
@@ -264,12 +276,56 @@ export function ContractFormDialog({ contract, open, onOpenChange, onSave, avail
                 <FormItem>
                   <FormLabel>Monto del Arriendo (CLP/mes)</FormLabel>
                   <FormControl>
-                    <Input type="number" placeholder="Ej: 350000" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} />
+                    <Input type="number" placeholder="Ej: 350000" {...field} 
+                      onChange={e => field.onChange(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                      value={field.value ?? ''} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <FormField
+                control={form.control}
+                name="securityDepositAmount"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Monto Garantía (CLP)</FormLabel>
+                    <FormControl>
+                       <div className="relative">
+                        <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input type="number" placeholder="Ej: 350000" className="pl-9" {...field} 
+                          onChange={e => field.onChange(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                          value={field.value ?? ''}
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="paymentDay"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Día de Pago Mensual</FormLabel>
+                    <FormControl>
+                      <div className="relative">
+                        <Receipt className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input type="number" placeholder="Ej: 5 (día del mes)" className="pl-9" {...field} 
+                          onChange={e => field.onChange(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
+                          value={field.value ?? ''}
+                          min="1" max="31"
+                        />
+                      </div>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </div>
             <FormField
               control={form.control}
               name="terms"
@@ -296,5 +352,5 @@ export function ContractFormDialog({ contract, open, onOpenChange, onSave, avail
   );
 }
 
-// Renamed DialogDescription to avoid conflict with FormDescription
 const DialogDescription = DialogDescriptionComponent;
+
