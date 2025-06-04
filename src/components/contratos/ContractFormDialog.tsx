@@ -8,10 +8,10 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale"; 
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose
+  Dialog, DialogContent, DialogDescription as DialogDescriptionComponent, DialogFooter, DialogHeader, DialogTitle, DialogClose
 } from "@/components/ui/dialog";
 import {
-  Form, FormControl, FormField, FormItem, FormLabel, FormMessage
+  Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -125,9 +125,9 @@ export function ContractFormDialog({ contract, open, onOpenChange, onSave, avail
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{isEditing ? "Editar Contrato" : "Crear Nuevo Contrato"}</DialogTitle>
-          <DialogDescription>
+          <DialogDescriptionComponent>
             {isEditing ? "Actualiza los detalles del contrato." : "Ingresa los detalles para el nuevo contrato de arriendo."}
-          </DialogDescription>
+          </DialogDescriptionComponent>
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1 pr-4">
@@ -295,3 +295,6 @@ export function ContractFormDialog({ contract, open, onOpenChange, onSave, avail
     </Dialog>
   );
 }
+
+// Renamed DialogDescription to avoid conflict with FormDescription
+const DialogDescription = DialogDescriptionComponent;
