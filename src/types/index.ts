@@ -1,3 +1,4 @@
+
 export type UserRole = "Arrendador" | "Inquilino";
 
 export interface UserProfile {
@@ -20,6 +21,8 @@ export interface Property {
   bedrooms?: number;
   bathrooms?: number;
   area?: number; // Square meters/feet
+  createdAt?: string; // ISO date string from Timestamp
+  updatedAt?: string; // ISO date string from Timestamp
 }
 
 export type ContractStatus = "Pendiente" | "Aprobado" | "Rechazado" | "Activo" | "Finalizado";

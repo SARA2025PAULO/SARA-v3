@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -11,7 +12,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogClose,
 } from "@/components/ui/dialog";
 import {
@@ -33,44 +33,38 @@ import {
 } from "@/components/ui/select";
 import type { Property, PropertyStatus } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
-import { useState } from "react";
+import { useEffect } from "react"; // Changed from useState to useEffect for reset logic
+import { useToast } from "@/hooks/use-toast";
 
-const propertyFormSchema = z.object({
+
+export const propertyFormSchema = z.object({
   address: z.string().min(5, { message: "La dirección debe tener al menos 5 caracteres." }),
   description: z.string().min(10, { message: "La descripción debe tener al menos 10 caracteres." }),
   status: z.enum(["Disponible", "Arrendada", "Mantenimiento"], { required_error: "Debes seleccionar un estado."}),
-  price: z.coerce.number().positive({ message: "El precio debe ser un número positivo." }).optional(),
-  bedrooms: z.coerce.number().int().min(0, { message: "Número de habitaciones no puede ser negativo."}).optional(),
-  bathrooms: z.coerce.number().int().min(0, { message: "Número de baños no puede ser negativo."}).optional(),
-  area: z.coerce.number().positive({ message: "El área debe ser un número positivo."}).optional(),
+  price: z.coerce.number().positive({ message: "El precio debe ser un número positivo." }).optional().or(z.literal('')),
+  bedrooms: z.coerce.number().int().min(0, { message: "Número de habitaciones no puede ser negativo."}).optional().or(z.literal('')),
+  bathrooms: z.coerce.number().int().min(0, { message: "Número de baños no puede ser negativo."}).optional().or(z.literal('')),
+  area: z.coerce.number().positive({ message: "El área debe ser un número positivo."}).optional().or(z.literal('')),
   imageUrl: z.string().url({ message: "Por favor ingresa una URL válida para la imagen."}).optional().or(z.literal('')),
 });
 
-type PropertyFormValues = z.infer<typeof propertyFormSchema>;
+export type PropertyFormValues = z.infer<typeof propertyFormSchema>;
 
 interface PropertyFormDialogProps {
-  property?: Property | null; // Property to edit, or null/undefined for new property
+  property?: Property | null; 
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (propertyData: Property, isEditing: boolean) => void;
+  onSave: (values: PropertyFormValues, isEditing: boolean, originalPropertyId?: string) => void;
 }
 
 export function PropertyFormDialog({ property, open, onOpenChange, onSave }: PropertyFormDialogProps) {
   const { currentUser } = useAuth();
+  const { toast } = useToast();
   const isEditing = !!property;
 
   const form = useForm<PropertyFormValues>({
     resolver: zodResolver(propertyFormSchema),
-    defaultValues: property ? {
-      address: property.address,
-      description: property.description,
-      status: property.status,
-      price: property.price,
-      bedrooms: property.bedrooms,
-      bathrooms: property.bathrooms,
-      area: property.area,
-      imageUrl: property.imageUrl || "",
-    } : {
+    defaultValues: {
       address: "",
       description: "",
       status: "Disponible",
@@ -82,18 +76,16 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
     },
   });
   
-  // Reset form when property data changes (e.g. opening dialog for different property)
-  // or when dialog is closed/reopened for a new property
-  useState(() => {
+  useEffect(() => {
     if (open) {
       form.reset(property ? {
         address: property.address,
         description: property.description,
         status: property.status,
-        price: property.price,
-        bedrooms: property.bedrooms,
-        bathrooms: property.bathrooms,
-        area: property.area,
+        price: property.price ?? undefined,
+        bedrooms: property.bedrooms ?? undefined,
+        bathrooms: property.bathrooms ?? undefined,
+        area: property.area ?? undefined,
         imageUrl: property.imageUrl || "",
       } : {
         address: "",
@@ -106,25 +98,23 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
         imageUrl: "",
       });
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [property, open, form.reset]);
+  }, [property, open, form]);
 
 
   async function onSubmit(values: PropertyFormValues) {
     if (!currentUser || currentUser.role !== "Arrendador") {
-      // This should not happen if UI is correctly hiding the button/dialog
-      alert("No tienes permiso para realizar esta acción.");
+      toast({title: "Permiso Denegado", description: "No puedes realizar esta acción.", variant: "destructive"});
       return;
     }
-
-    const propertyDataToSave: Property = {
-      id: isEditing ? property.id : new Date().toISOString(), // Generate ID for new, use existing for edit
-      ownerId: currentUser.uid,
+    // Convert empty strings from optional number fields to undefined
+    const cleanedValues: PropertyFormValues = {
       ...values,
-      status: values.status as PropertyStatus, // Zod enum ensures this is correct
+      price: values.price === '' ? undefined : values.price,
+      bedrooms: values.bedrooms === '' ? undefined : values.bedrooms,
+      bathrooms: values.bathrooms === '' ? undefined : values.bathrooms,
+      area: values.area === '' ? undefined : values.area,
     };
-    onSave(propertyDataToSave, isEditing);
-    onOpenChange(false); // Close dialog on save
+    onSave(cleanedValues, isEditing, isEditing && property ? property.id : undefined);
   }
 
   return (
@@ -194,7 +184,10 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
                   <FormItem>
                     <FormLabel>Precio (USD/mes)</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="Ej: 1200" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} />
+                      <Input type="number" placeholder="Ej: 1200" {...field} 
+                       onChange={e => field.onChange(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                       value={field.value ?? ''} 
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -207,7 +200,10 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
                   <FormItem>
                     <FormLabel>Área (m²)</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="Ej: 150" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} />
+                      <Input type="number" placeholder="Ej: 150" {...field} 
+                       onChange={e => field.onChange(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                       value={field.value ?? ''}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -222,7 +218,10 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
                   <FormItem>
                     <FormLabel>Habitaciones</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="Ej: 3" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10))} />
+                      <Input type="number" placeholder="Ej: 3" {...field} 
+                       onChange={e => field.onChange(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
+                       value={field.value ?? ''}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -235,7 +234,10 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
                   <FormItem>
                     <FormLabel>Baños</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="Ej: 2" {...field} onChange={e => field.onChange(parseInt(e.target.value, 10))} />
+                      <Input type="number" placeholder="Ej: 2" {...field} 
+                       onChange={e => field.onChange(e.target.value === '' ? '' : parseInt(e.target.value, 10))}
+                       value={field.value ?? ''}
+                      />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -249,7 +251,7 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
                 <FormItem>
                   <FormLabel>URL de la Imagen</FormLabel>
                   <FormControl>
-                    <Input placeholder="https://ejemplo.com/imagen.png" {...field} />
+                    <Input placeholder="https://ejemplo.com/imagen.png" {...field} value={field.value ?? ''} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -269,3 +271,4 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
     </Dialog>
   );
 }
+

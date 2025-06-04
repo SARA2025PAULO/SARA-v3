@@ -1,22 +1,33 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { PropertyCard } from "@/components/propiedades/PropertyCard";
-import { PropertyFormDialog } from "@/components/propiedades/PropertyFormDialog";
+import { PropertyFormDialog, type PropertyFormValues } from "@/components/propiedades/PropertyFormDialog";
 import type { Property } from "@/types";
-import { PlusCircle, Search, LayoutGrid, List } from "lucide-react";
+import { PlusCircle, Search, LayoutGrid, List, Edit3, Eye } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { db } from "@/lib/firebase";
+import { collection, doc, setDoc, addDoc, getDocs, query, serverTimestamp, updateDoc, deleteDoc } from "firebase/firestore";
+import { Card, CardTitle, CardDescription } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
-// Mock Data - replace with actual data fetching (e.g., from Firestore)
-const initialProperties: Property[] = [
-  { id: "1", address: "Avenida Rivadavia 1234, Buenos Aires", status: "Disponible", description: "Amplio departamento de 3 ambientes con balcón.", ownerId: "landlord123", price: 750, bedrooms: 2, bathrooms: 1, area: 70, imageUrl: "https://placehold.co/600x400.png?text=Depto+Rivadavia" },
-  { id: "2", address: "Calle Falsa 123, Springfield", status: "Arrendada", description: "Casa familiar con jardín y pileta.", ownerId: "landlord123", price: 1200, bedrooms: 3, bathrooms: 2, area: 150, imageUrl: "https://placehold.co/600x400.png?text=Casa+Springfield" },
-  { id: "3", address: "Boulevard de los Sueños Rotos 45, Ciudad Gótica", status: "Mantenimiento", description: "Loft moderno en zona industrial renovada.", ownerId: "landlord123", price: 900, bedrooms: 1, bathrooms: 1, area: 90, imageUrl: "https://placehold.co/600x400.png?text=Loft+Gotica" },
-];
+// Helper to create a placeholder Building2 icon
+const Building2 = (props: React.SVGProps<SVGSVGElement>) => (
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+    <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18"/>
+    <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/>
+    <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/>
+    <path d="M10 6h4"/>
+    <path d="M10 10h4"/>
+    <path d="M10 14h4"/>
+    <path d="M10 18h4"/>
+  </svg>
+);
 
 export default function PropiedadesPage() {
   const { currentUser } = useAuth();
@@ -28,33 +39,111 @@ export default function PropiedadesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
-
   useEffect(() => {
-    // Simulate fetching properties for the current landlord
-    if (currentUser && currentUser.role === "Arrendador") {
-      // In a real app, filter by currentUser.uid === property.ownerId
-      const landlordProperties = initialProperties.filter(p => p.ownerId === currentUser.uid || initialProperties.indexOf(p) < 3); // Mocking some ownership
-      setProperties(landlordProperties);
-    } else {
-       // Fallback for testing if currentUser is not Arrendador, or to show some initial data
-       // This part would not be hit if layout correctly restricts access
-       setProperties(initialProperties.slice(0,2));
-    }
-    setIsLoading(false);
-  }, [currentUser]);
+    const fetchProperties = async () => {
+      if (currentUser && currentUser.role === "Arrendador" && db) {
+        setIsLoading(true);
+        try {
+          const propertiesCollectionRef = collection(db, "users", currentUser.uid, "properties");
+          // const q = query(propertiesCollectionRef, orderBy("createdAt", "desc")); // Optional: order by creation date
+          const q = query(propertiesCollectionRef);
+          const querySnapshot = await getDocs(q);
+          const fetchedProperties: Property[] = querySnapshot.docs.map(docSnap => {
+            const data = docSnap.data();
+            return {
+              id: docSnap.id,
+              address: data.address,
+              status: data.status,
+              description: data.description,
+              ownerId: data.ownerId,
+              imageUrl: data.imageUrl,
+              price: data.price,
+              bedrooms: data.bedrooms,
+              bathrooms: data.bathrooms,
+              area: data.area,
+              createdAt: data.createdAt?.toDate().toISOString(),
+              updatedAt: data.updatedAt?.toDate().toISOString(),
+            } as Property;
+          });
+          setProperties(fetchedProperties);
+        } catch (error) {
+          console.error("Error fetching properties:", error);
+          toast({ title: "Error al Cargar Propiedades", description: "No se pudieron obtener tus propiedades de la base de datos.", variant: "destructive"});
+        } finally {
+          setIsLoading(false);
+        }
+      } else {
+        setProperties([]); 
+        setIsLoading(false);
+      }
+    };
+
+    fetchProperties();
+  }, [currentUser, toast]);
   
-  // Handle new property or edit property through dialog
-  const handleSaveProperty = (propertyData: Property, isEditing: boolean) => {
-    // Here you would typically interact with your backend/Firestore
-    if (isEditing) {
-      setProperties(prev => prev.map(p => p.id === propertyData.id ? propertyData : p));
-      toast({ title: "Propiedad Actualizada", description: `Los detalles de "${propertyData.address}" se han guardado.`});
-    } else {
-      setProperties(prev => [propertyData, ...prev]);
-      toast({ title: "Propiedad Añadida", description: `"${propertyData.address}" se ha añadido a tus propiedades.`});
+  const handleSaveProperty = async (
+    values: PropertyFormValues,
+    isEditing: boolean,
+    originalPropertyId?: string
+  ) => {
+    if (!currentUser || !db || currentUser.role !== "Arrendador") {
+      toast({ title: "Error de Permiso", description: "No tienes permiso para esta acción.", variant: "destructive"});
+      return;
     }
-    setEditingProperty(null);
-    setIsFormOpen(false);
+
+    setIsLoading(true); 
+
+    try {
+      if (isEditing && originalPropertyId) {
+        const propertyDocRef = doc(db, "users", currentUser.uid, "properties", originalPropertyId);
+        const updatedPropertyData = {
+          ...values,
+          ownerId: currentUser.uid,
+          updatedAt: serverTimestamp(),
+        };
+        await setDoc(propertyDocRef, updatedPropertyData, { merge: true });
+
+        setProperties(prev => prev.map(p => 
+          p.id === originalPropertyId 
+            ? { ...p, ...values, updatedAt: new Date().toISOString() } 
+            : p
+        ));
+        toast({ title: "Propiedad Actualizada", description: `Los detalles de "${values.address}" se han guardado.` });
+
+      } else { 
+        const propertiesCollectionRef = collection(db, "users", currentUser.uid, "properties");
+        const newPropertyData = {
+          ...values,
+          ownerId: currentUser.uid,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        };
+        const newDocRef = await addDoc(propertiesCollectionRef, newPropertyData);
+        
+        const newPropertyForState: Property = {
+            ...values, // spread form values
+            id: newDocRef.id,
+            ownerId: currentUser.uid,
+            createdAt: new Date().toISOString(), 
+            updatedAt: new Date().toISOString(),
+            // Ensure optional fields from PropertyFormValues are correctly typed for Property
+            price: values.price ?? undefined,
+            bedrooms: values.bedrooms ?? undefined,
+            bathrooms: values.bathrooms ?? undefined,
+            area: values.area ?? undefined,
+            imageUrl: values.imageUrl ?? undefined,
+        };
+        setProperties(prev => [newPropertyForState, ...prev]);
+        toast({ title: "Propiedad Añadida", description: `"${values.address}" se ha añadido a tus propiedades.` });
+      }
+    } catch (error) {
+      console.error("Error saving property to Firestore:", error);
+      toast({ title: "Error al Guardar", description: "No se pudo guardar la propiedad en la base de datos.", variant: "destructive" });
+    } finally {
+      setIsLoading(false); 
+      setEditingProperty(null);
+      setIsFormOpen(false);
+    }
   };
 
   const handleAddNewProperty = () => {
@@ -68,7 +157,6 @@ export default function PropiedadesPage() {
   };
 
   const handleViewDetails = (property: Property) => {
-    // For now, just log. Could open a more detailed modal or navigate to a property page.
     console.log("View details for:", property);
     toast({ title: "Vista de Detalles", description: `Mostrando detalles para ${property.address} (funcionalidad pendiente).`});
   };
@@ -78,7 +166,7 @@ export default function PropiedadesPage() {
     property.description.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (isLoading) {
+  if (isLoading && properties.length === 0) { // Show loading only on initial load or when saving
     return <div className="p-4">Cargando propiedades...</div>;
   }
 
@@ -132,11 +220,11 @@ export default function PropiedadesPage() {
                     onViewDetails={handleViewDetails}
                 />
              ) : (
-                <Card key={property.id} className="flex flex-col md:flex-row overflow-hidden">
-                    <img src={property.imageUrl || "https://placehold.co/200x150.png"} alt={property.address} className="w-full md:w-48 h-48 md:h-auto object-cover" data-ai-hint="property exterior" />
+                <Card key={property.id} className="flex flex-col md:flex-row overflow-hidden shadow-md hover:shadow-lg transition-shadow">
+                    <img src={property.imageUrl || "https://placehold.co/200x150.png"} alt={property.address} className="w-full md:w-48 h-48 md:h-auto object-cover" data-ai-hint="property building" />
                     <div className="p-4 flex flex-col flex-grow">
-                        <CardTitle className="text-lg font-semibold mb-1">{property.address}</CardTitle>
-                        <Badge className={`w-fit text-xs mb-2 ${property.status === "Disponible" ? "bg-accent text-accent-foreground" : property.status === "Arrendada" ? "bg-blue-200 text-blue-800" : "bg-yellow-200 text-yellow-800"}`}>
+                        <CardTitle className="text-lg font-semibold mb-1 font-headline">{property.address}</CardTitle>
+                        <Badge variant="secondary" className={`w-fit text-xs mb-2 ${property.status === "Disponible" ? "bg-accent text-accent-foreground" : property.status === "Arrendada" ? "bg-blue-200 text-blue-800" : "bg-yellow-200 text-yellow-800"}`}>
                             {property.status}
                         </Badge>
                         <CardDescription className="text-sm text-muted-foreground mb-2 flex-grow">{property.description.substring(0,100)}{property.description.length > 100 && '...'}</CardDescription>
@@ -161,16 +249,3 @@ export default function PropiedadesPage() {
     </div>
   );
 }
-
-// Helper to create a placeholder Building2 icon
-const Building2 = (props: React.SVGProps<SVGSVGElement>) => (
-  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-    <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18"/>
-    <path d="M6 12H4a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2h2"/>
-    <path d="M18 9h2a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2h-2"/>
-    <path d="M10 6h4"/>
-    <path d="M10 10h4"/>
-    <path d="M10 14h4"/>
-    <path d="M10 18h4"/>
-  </svg>
-);
