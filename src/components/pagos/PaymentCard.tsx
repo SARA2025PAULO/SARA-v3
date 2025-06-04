@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { Payment, UserRole } from "@/types";
-import { DollarSign, CalendarDays, Info, CheckCircle2, Clock, UserCircle, Building, Paperclip } from "lucide-react";
+import { DollarSign, CalendarDays, Info, CheckCircle2, Clock, UserCircle, Building, Paperclip, AlertCircle } from "lucide-react";
 
 interface PaymentCardProps {
   payment: Payment;
@@ -59,6 +59,12 @@ export function PaymentCard({ payment, userRole, onAcceptPayment, isAcceptingPay
           <CalendarDays className="h-4 w-4 mr-2 text-primary flex-shrink-0" />
           <span>Fecha de Pago: {formatDate(payment.paymentDate)}</span>
         </div>
+         {payment.isOverdue && (
+          <Badge variant="destructive" className="text-xs font-normal">
+            <AlertCircle className="h-3 w-3 mr-1" />
+            Declarado con Atraso
+          </Badge>
+        )}
          {userRole === "Arrendador" && payment.tenantName && (
           <div className="flex items-center">
             <UserCircle className="h-4 w-4 mr-2 text-primary flex-shrink-0" />

@@ -7,8 +7,9 @@ import { db } from '@/lib/firebase';
 import { UserProfile, TenantCertificateData, Contract, Property, Evaluation, Payment, Incident, TenantRentalHistory, TenantEvaluationsSummary, TenantPaymentsSummary, TenantIncidentsSummary } from "@/types";
 import { collection, doc, getDoc, getDocs, query, where, orderBy, collectionGroup, Timestamp } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
-import { Printer, Loader2, AlertCircle, Star } from "lucide-react";
+import { Printer, Loader2, AlertCircle, Star, AlertOctagon } from "lucide-react";
 import Image from 'next/image';
+import { Badge } from '@/components/ui/badge';
 
 // Helper to safely format dates, defaulting to 'N/A'
 const formatDateSafe = (dateInput: string | Date | Timestamp | undefined, options?: Intl.DateTimeFormatOptions): string => {
@@ -46,14 +47,14 @@ async function fetchTenantCertificateData(tenantUid: string): Promise<TenantCert
   
   const contractsQuery = query(collection(db, "contracts"), where("tenantId", "==", tenantUid), orderBy("startDate", "desc"));
   const contractsSnapshot = await getDocs(contractsQuery);
-  const contracts: Contract[] = contractsSnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Contract));
+  const contractsData: Contract[] = contractsSnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Contract));
 
   const rentalHistory: TenantRentalHistory[] = [];
   let allEvaluations: Evaluation[] = [];
   let allPayments: Payment[] = [];
   let allIncidents: Incident[] = [];
 
-  for (const contract of contracts) {
+  for (const contract of contractsData) {
     let landlordName = contract.landlordName || "Arrendador Desconocido";
     if (contract.landlordId) {
         const landlordDocRef = doc(db, "users", contract.landlordId);
@@ -75,9 +76,10 @@ async function fetchTenantCertificateData(tenantUid: string): Promise<TenantCert
     const evaluationsSnapshot = await getDocs(evaluationsQuery);
     evaluationsSnapshot.docs.forEach(docSnap => allEvaluations.push({ id: docSnap.id, ...docSnap.data() } as Evaluation));
 
-    const paymentsQuery = query(collection(db, "contracts", contract.id, "payments"), where("tenantId", "==", tenantUid));
-    const paymentsSnapshot = await getDocs(paymentsQuery);
-    paymentsSnapshot.docs.forEach(docSnap => allPayments.push({ id: docSnap.id, ...docSnap.data()} as Payment));
+    // Fetch payments specifically for this contract to check `isOverdue`
+    const paymentsContractQuery = query(collection(db, "contracts", contract.id, "payments"), where("tenantId", "==", tenantUid));
+    const paymentsContractSnapshot = await getDocs(paymentsContractQuery);
+    paymentsContractSnapshot.docs.forEach(docSnap => allPayments.push({ id: docSnap.id, ...docSnap.data()} as Payment));
     
     const incidentsTenantQuery = query(collection(db, "incidents"), where("contractId", "==", contract.id), where("tenantId", "==", tenantUid));
     const incidentsTenantSnapshot = await getDocs(incidentsTenantQuery);
@@ -108,11 +110,15 @@ async function fetchTenantCertificateData(tenantUid: string): Promise<TenantCert
   }
 
   const acceptedPayments = allPayments.filter(p => p.status === "aceptado");
+  const overduePayments = allPayments.filter(p => p.isOverdue === true);
+
   let paymentSummary: TenantPaymentsSummary = {
     totalPaymentsDeclared: allPayments.length,
     totalPaymentsAccepted: acceptedPayments.length,
     totalAmountAccepted: acceptedPayments.reduce((sum, p) => sum + p.amount, 0),
     compliancePercentage: allPayments.length > 0 ? parseFloat(((acceptedPayments.length / allPayments.length) * 100).toFixed(1)) : null,
+    totalOverduePayments: overduePayments.length,
+    overduePaymentsPercentage: allPayments.length > 0 ? parseFloat(((overduePayments.length / allPayments.length) * 100).toFixed(1)) : null,
   };
 
   let incidentSummary: TenantIncidentsSummary = {
@@ -287,9 +293,15 @@ export function TenantCertificateDisplay() {
             <p><strong>Pagos Aceptados:</strong> {paymentsSummary.totalPaymentsAccepted}</p>
             <p><strong>Monto Total Aceptado:</strong> ${paymentsSummary.totalAmountAccepted.toLocaleString('es-CL')}</p>
             <p><strong>Cumplimiento de Declaraciones:</strong> {paymentsSummary.compliancePercentage !== null ? `${paymentsSummary.compliancePercentage.toFixed(1)}%` : 'N/A'}</p>
+            <p><strong>Pagos Declarados con Atraso:</strong> {paymentsSummary.totalOverduePayments} 
+              {paymentsSummary.overduePaymentsPercentage !== null && paymentsSummary.totalOverduePayments > 0 && (
+                <Badge variant="destructive" className="ml-2 text-xs">
+                  <AlertOctagon className="h-3 w-3 mr-1" />
+                  {paymentsSummary.overduePaymentsPercentage.toFixed(1)}% de los pagos
+                </Badge>
+              )}
+            </p>
         </div>
-         {/* Placeholder for late payments, would require more complex logic */}
-        {/* <p className="text-xs text-muted-foreground mt-1">Registro de pagos atrasados no disponible en esta versión.</p> */}
       </section>
 
       {/* Incidents Summary */}

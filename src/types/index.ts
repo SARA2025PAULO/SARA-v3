@@ -70,6 +70,7 @@ export interface Payment {
   acceptedAt?: string; // ISO string, when landlord accepted the payment
   declaredBy: string; // UID of tenant who declared
   attachmentUrl?: string; // Optional URL for payment proof
+  isOverdue?: boolean; // True if paymentDate's day > contract.paymentDay
 }
 
 export type IncidentType = "pago" | "cuidado de la propiedad" | "ruidos molestos" | "reparaciones necesarias" | "incumplimiento de contrato" | "otros";
@@ -154,7 +155,8 @@ export interface TenantPaymentsSummary {
   totalPaymentsAccepted: number;
   totalAmountAccepted: number;
   compliancePercentage: number | null;
-  // detailedPaymentRecords: Payment[]; // Or a summary of late payments
+  totalOverduePayments: number;
+  overduePaymentsPercentage: number | null;
 }
 
 export interface TenantIncidentsSummary {

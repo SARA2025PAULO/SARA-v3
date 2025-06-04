@@ -22,8 +22,11 @@ import {
   orderBy,
   updateDoc,
   serverTimestamp,
-  collectionGroup
+  collectionGroup,
+  getDoc
 } from "firebase/firestore";
+import { getDate } from "date-fns";
+
 
 export default function PagosPage() {
   const { currentUser } = useAuth();
@@ -117,29 +120,34 @@ export default function PagosPage() {
     setIsSubmitting(true);
 
     try {
-      const selectedContract = tenantActiveContracts.find(c => c.id === values.contractId);
-      if (!selectedContract) {
-        toast({ title: "Error", description: "Contrato seleccionado no válido.", variant: "destructive" });
+      const selectedContractDocRef = doc(db, "contracts", values.contractId);
+      const selectedContractSnap = await getDoc(selectedContractDocRef);
+
+      if (!selectedContractSnap.exists()) {
+        toast({ title: "Error", description: "Contrato seleccionado no válido o no encontrado.", variant: "destructive" });
         setIsSubmitting(false);
         return;
       }
+      const selectedContract = selectedContractSnap.data() as Contract;
+
 
       let attachmentUrlValue: string | undefined = undefined;
       if (values.attachment && values.attachment.length > 0) {
         const file = values.attachment[0];
         // TODO: Implement Firebase Storage upload here
-        // For now, using filename as placeholder
         attachmentUrlValue = file.name; 
-        console.log("Attachment selected:", file.name, file.type);
-        // Example (needs Firebase Storage setup & SDK):
-        // const storage = getStorage();
-        // const storageRef = ref(storage, `payment_proofs/${currentUser.uid}/${selectedContract.id}/${file.name}`);
-        // await uploadBytes(storageRef, file);
-        // attachmentUrlValue = await getDownloadURL(storageRef);
+      }
+
+      let isOverdue = false;
+      if (selectedContract.paymentDay) {
+        const paymentDateDay = getDate(new Date(values.paymentDate));
+        if (paymentDateDay > selectedContract.paymentDay) {
+          isOverdue = true;
+        }
       }
 
       const paymentData: Omit<Payment, 'id' | 'declaredAt' | 'acceptedAt'> & { declaredAt: any } = {
-        contractId: selectedContract.id,
+        contractId: selectedContractDocRef.id,
         propertyId: selectedContract.propertyId,
         propertyName: selectedContract.propertyName,
         tenantId: currentUser.uid,
@@ -153,13 +161,14 @@ export default function PagosPage() {
         status: "pendiente",
         declaredBy: currentUser.uid,
         declaredAt: serverTimestamp(),
-        ...(attachmentUrlValue && { attachmentUrl: attachmentUrlValue }), // Add if attachment exists
+        ...(attachmentUrlValue && { attachmentUrl: attachmentUrlValue }),
+        isOverdue,
       };
       
-      const paymentsCollectionRef = collection(db, "contracts", selectedContract.id, "payments");
+      const paymentsCollectionRef = collection(db, "contracts", selectedContractDocRef.id, "payments");
       await addDoc(paymentsCollectionRef, paymentData);
       
-      toast({ title: "Pago Declarado", description: `Tu pago de ${values.type} por $${values.amount.toLocaleString('es-CL')} ha sido declarado.` });
+      toast({ title: "Pago Declarado", description: `Tu pago de ${values.type} por $${values.amount.toLocaleString('es-CL')} ha sido declarado.${isOverdue ? ' (Nota: Declarado fuera de plazo según día de pago del contrato)' : ''}` });
       fetchPayments(); 
       setIsPaymentFormOpen(false);
     } catch (error) {
