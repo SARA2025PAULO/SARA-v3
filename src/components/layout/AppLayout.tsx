@@ -4,7 +4,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, FileText, LayoutDashboard, LogOut, Building2, Users, CreditCard, ShieldAlert } from "lucide-react";
+import { Home, FileText, LayoutDashboard, LogOut, Building2, Users, CreditCard, ShieldAlert, ClipboardCheck } from "lucide-react";
 import {
   SidebarProvider,
   Sidebar,
@@ -54,6 +54,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     { href: "/contratos", label: "Contratos", icon: FileText },
     { href: "/pagos", label: "Pagos", icon: CreditCard },
     { href: "/incidentes", label: "Incidentes", icon: ShieldAlert },
+    { href: "/evaluaciones", label: "Evaluaciones", icon: ClipboardCheck },
   ];
 
   return (

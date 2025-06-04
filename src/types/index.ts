@@ -1,4 +1,5 @@
 
+
 export type UserRole = "Arrendador" | "Inquilino";
 
 export interface UserProfile {
@@ -88,19 +89,44 @@ export interface Incident {
   status: IncidentStatus;
   
   // Initial Report
-  description: string; // The first description of the incident
-  initialAttachmentUrl?: string; // Attachment for the initial report
+  description: string; 
+  initialAttachmentUrl?: string; 
   createdAt: string; 
-  createdBy: string; // UID of user who created the incident (can be Landlord or Tenant)
+  createdBy: string; 
   
   // Response
-  responseText?: string; // The response text to the initial report
-  responseAttachmentUrl?: string; // Attachment for the response
+  responseText?: string; 
+  responseAttachmentUrl?: string; 
   respondedAt?: string; 
-  respondedBy?: string; // UID of user who responded
+  respondedBy?: string; 
   
   // Closure
   closedAt?: string;
-  closedBy?: string; // UID of user who closed (should be same as createdBy)
+  closedBy?: string; 
 }
 
+export interface EvaluationCriteria {
+  paymentPunctuality: number; // 1-5
+  propertyCare: number; // 1-5
+  communication: number; // 1-5
+  generalBehavior: number; // 1-5
+}
+
+export type EvaluationStatus = "pendiente de confirmacion" | "recibida";
+
+export interface Evaluation {
+  id: string; // Firestore document ID
+  contractId: string;
+  propertyId: string; // Denormalized from contract
+  propertyName?: string; // Denormalized from contract
+  landlordId: string; // UID of the Landlord who created the evaluation
+  landlordName?: string; // Denormalized
+  tenantId: string; // UID of the Tenant being evaluated
+  tenantName?: string; // Denormalized
+  criteria: EvaluationCriteria;
+  evaluationDate: string; // ISO date string, when the evaluation was submitted by landlord
+  status: EvaluationStatus;
+  tenantComment?: string; // Optional comment from the tenant upon confirmation
+  tenantConfirmedAt?: string; // ISO date string, when the tenant confirmed receipt
+  overallRating?: number; // Optional: can be calculated average
+}
