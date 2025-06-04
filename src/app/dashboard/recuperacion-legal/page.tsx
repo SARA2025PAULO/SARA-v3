@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Gavel, AlertTriangle, FileText, Download, Printer, ListChecks, ListX, MailWarning } from "lucide-react";
+import { Gavel, AlertTriangle, FileText, Download, Printer, ListChecks, ListX, MailWarning, Send } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ContractDisplayForLegal } from "@/components/recuperacion-legal/ContractDisplayForLegal";
 import { PaymentHistoryCertificate } from "@/components/recuperacion-legal/PaymentHistoryCertificate";
@@ -182,6 +182,26 @@ export default function RecuperacionLegalPage() {
                       Esta opción agrupará todos los documentos generados en un solo archivo para facilitar su presentación.
                     </p>
                   </div>
+
+                  <Separator className="my-6" />
+                  
+                  <Card className="mt-4">
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center">
+                        <Send className="mr-2 h-5 w-5 text-primary" />
+                        Enviar a Asesor Legal
+                      </CardTitle>
+                      <CardDescription>
+                        Próximamente podrás enviar este paquete de documentación directamente a abogados o estudios jurídicos asociados a S.A.R.A.
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <Button size="lg" disabled>
+                        <Send className="mr-2 h-5 w-5" /> Enviar Documentación a Abogado (Próximamente)
+                      </Button>
+                    </CardContent>
+                  </Card>
+
                 </CardContent>
               </Card>
             )}
