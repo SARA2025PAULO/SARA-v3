@@ -4,9 +4,10 @@
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Home, MessageSquare, Wallet, ShieldCheck, Receipt } from "lucide-react";
+import { FileText, Home, MessageSquare, Wallet, ShieldCheck, Receipt, CalendarDays } from "lucide-react"; // Added CalendarDays
 import type { Contract, Property } from "@/types";
 import Image from "next/image";
+import { Badge } from "@/components/ui/badge"; // Added Badge import
 
 // Mock data - replace with actual data fetching
 const mockTenantContracts: Contract[] = [
