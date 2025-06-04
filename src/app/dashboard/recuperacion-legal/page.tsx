@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Gavel, AlertTriangle, FileText, Download, Printer } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
+import { ContractDisplayForLegal } from "@/components/recuperacion-legal/ContractDisplayForLegal";
 
 // Placeholder for individual document display component
 const LegalDocumentPlaceholder = ({ title, description }: { title: string; description: string }) => (
@@ -146,10 +147,19 @@ export default function RecuperacionLegalPage() {
                     title="Historial de Incidentes"
                     description="Recopila los incidentes registrados para este contrato, especialmente aquellos que constituyan incumplimientos."
                   />
-                  <LegalDocumentPlaceholder 
-                    title="Copia del Contrato de Arriendo"
-                    description="Accede a los términos y condiciones del contrato tal como están registrados en la plataforma."
-                  />
+                  
+                  <Card className="mt-4">
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center">
+                        <FileText className="mr-2 h-5 w-5 text-primary" />
+                        Copia del Contrato de Arriendo
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ContractDisplayForLegal contract={selectedContract} />
+                    </CardContent>
+                  </Card>
+
                   <LegalDocumentPlaceholder 
                     title="Borrador de Notificación Previa al Inquilino"
                     description="Genera un borrador de notificación de incumplimiento para enviar al inquilino, otorgando un plazo para regularizar la situación."
@@ -174,3 +184,4 @@ export default function RecuperacionLegalPage() {
     </div>
   );
 }
+
