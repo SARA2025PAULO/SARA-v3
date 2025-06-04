@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { ClipboardCopy, Loader2 } from "lucide-react";
+import { useAuth } from '@/contexts/AuthContext'; // Import useAuth
 
 interface PriorNoticeDraftProps {
   contract: Contract;
@@ -24,6 +25,7 @@ interface FetchedData {
 
 export function PriorNoticeDraft({ contract }: PriorNoticeDraftProps) {
   const { toast } = useToast();
+  const { currentUser } = useAuth(); // Get currentUser from AuthContext
   const [isLoading, setIsLoading] = useState(true);
   const [noticeText, setNoticeText] = useState("");
   const [fetchedData, setFetchedData] = useState<FetchedData | null>(null);
@@ -166,14 +168,10 @@ RUT: [SU RUT]
 Correo Electrónico: ${currentUser?.email || '[SU CORREO ELECTRÓNICO]'}
 Teléfono: [SU TELÉFONO]
 `;
-    // Obtener currentUser del contexto para el email y placeholders
-    // Esto es una simplificación, idealmente se obtendría de forma más robusta el perfil del arrendador actual.
-    const currentUserEmail = contract.landlordName; // Esto no es correcto, necesitamos el email del landlord actual
+    setNoticeText(generatedText.trim());
 
-    setNoticeText(generatedText.trim().replace('[SU CORREO ELECTRÓNICO]', contract.landlordName || '[SU CORREO ELECTRÓNICO]').replace('[NOMBRE DEL ARRENDADOR]', contract.landlordName || '[NOMBRE DEL ARRENDADOR]'));
-
-
-  }, [contract, isLoading, fetchedData, today, cityPlaceholder]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [contract, isLoading, fetchedData, today, cityPlaceholder, currentUser]); // Added currentUser to dependency array
 
 
   const handleCopyToClipboard = () => {
@@ -230,4 +228,3 @@ Teléfono: [SU TELÉFONO]
     </div>
   );
 }
-
