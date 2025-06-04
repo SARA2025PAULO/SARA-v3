@@ -71,3 +71,30 @@ export interface Payment {
   attachmentUrl?: string; // Optional URL for payment proof
 }
 
+export type IncidentType = "pago" | "cuidado de la propiedad" | "ruidos molestos" | "reparaciones necesarias" | "incumplimiento de contrato" | "otros";
+export type IncidentStatus = "pendiente" | "respondido" | "cerrado";
+
+export interface Incident {
+  id: string; // Firestore document ID
+  contractId: string;
+  propertyId: string; 
+  propertyName: string; 
+  landlordId: string;
+  landlordName?: string;
+  tenantId: string;
+  tenantName?: string;
+  type: IncidentType;
+  description: string; // Landlord's initial description
+  attachmentUrlLandlord?: string; // Optional, landlord's attachment
+  status: IncidentStatus;
+  createdAt: string; // ISO timestamp
+  createdBy: string; // Landlord's UID (who created the incident)
+  
+  tenantResponseText?: string; // Tenant's comment
+  attachmentUrlTenant?: string; // Optional, tenant's attachment
+  respondedAt?: string; // ISO timestamp of tenant's response
+  
+  closedAt?: string; // ISO timestamp when landlord closed it
+  closedBy?: string; // Landlord's UID (who closed the incident)
+}
+

@@ -4,7 +4,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, FileText, LayoutDashboard, LogOut, Building2, Users, CreditCard } from "lucide-react";
+import { Home, FileText, LayoutDashboard, LogOut, Building2, Users, CreditCard, ShieldAlert } from "lucide-react";
 import {
   SidebarProvider,
   Sidebar,
@@ -53,6 +53,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     ...(isArrendador ? [{ href: "/propiedades", label: "Propiedades", icon: Building2 }] : []),
     { href: "/contratos", label: "Contratos", icon: FileText },
     { href: "/pagos", label: "Pagos", icon: CreditCard },
+    { href: "/incidentes", label: "Incidentes", icon: ShieldAlert },
   ];
 
   return (
