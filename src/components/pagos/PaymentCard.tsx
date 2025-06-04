@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { Payment, UserRole } from "@/types";
-import { DollarSign, CalendarDays, Info, CheckCircle2, Clock, UserCircle, Building } from "lucide-react";
+import { DollarSign, CalendarDays, Info, CheckCircle2, Clock, UserCircle, Building, Paperclip } from "lucide-react";
 
 interface PaymentCardProps {
   payment: Payment;
@@ -77,6 +77,13 @@ export function PaymentCard({ payment, userRole, onAcceptPayment, isAcceptingPay
             <span className="whitespace-pre-wrap">Notas: {payment.notes}</span>
           </div>
         )}
+        {payment.attachmentUrl && (
+          <div className="flex items-center">
+            <Paperclip className="h-4 w-4 mr-2 text-primary flex-shrink-0" />
+            {/* TODO: Make this a functional link once file upload is fully implemented */}
+            <span>Comprobante: {payment.attachmentUrl}</span> 
+          </div>
+        )}
         <div className="flex items-center text-xs text-muted-foreground">
             <Clock className="h-3 w-3 mr-1.5 flex-shrink-0" />
             <span>Declarado: {formatDateTime(payment.declaredAt)}</span>
@@ -104,3 +111,4 @@ export function PaymentCard({ payment, userRole, onAcceptPayment, isAcceptingPay
     </Card>
   );
 }
+

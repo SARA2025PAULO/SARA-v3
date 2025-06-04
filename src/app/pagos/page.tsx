@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { PaymentFormDialog, type PaymentFormValues } from "@/components/pagos/PaymentFormDialog";
 import { PaymentCard } from "@/components/pagos/PaymentCard";
 import type { Payment, Contract } from "@/types";
-import { PlusCircle, ListChecks, Search, CreditCard } from "lucide-react";
+import { PlusCircle, Search, CreditCard } from "lucide-react"; // Removed ListChecks
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
@@ -68,8 +68,10 @@ export default function PagosPage() {
     try {
       let q;
       if (currentUser.role === "Arrendador") {
+        // For landlords, query the 'payments' collection group
         q = query(collectionGroup(db, "payments"), where("landlordId", "==", currentUser.uid), orderBy("declaredAt", "desc"));
       } else if (currentUser.role === "Inquilino") {
+        // For tenants, also query the 'payments' collection group
         q = query(collectionGroup(db, "payments"), where("tenantId", "==", currentUser.uid), orderBy("declaredAt", "desc"));
       } else {
         setPayments([]);
@@ -82,7 +84,7 @@ export default function PagosPage() {
         return {
           id: docSnap.id,
           ...data,
-          paymentDate: data.paymentDate, // Already string from Firestore Timestamp if stored as such
+          paymentDate: data.paymentDate, 
           declaredAt: data.declaredAt?.toDate ? data.declaredAt.toDate().toISOString() : data.declaredAt,
           acceptedAt: data.acceptedAt?.toDate ? data.acceptedAt.toDate().toISOString() : data.acceptedAt,
         } as Payment;
@@ -122,6 +124,20 @@ export default function PagosPage() {
         return;
       }
 
+      let attachmentUrlValue: string | undefined = undefined;
+      if (values.attachment && values.attachment.length > 0) {
+        const file = values.attachment[0];
+        // TODO: Implement Firebase Storage upload here
+        // For now, using filename as placeholder
+        attachmentUrlValue = file.name; 
+        console.log("Attachment selected:", file.name, file.type);
+        // Example (needs Firebase Storage setup & SDK):
+        // const storage = getStorage();
+        // const storageRef = ref(storage, `payment_proofs/${currentUser.uid}/${selectedContract.id}/${file.name}`);
+        // await uploadBytes(storageRef, file);
+        // attachmentUrlValue = await getDownloadURL(storageRef);
+      }
+
       const paymentData: Omit<Payment, 'id' | 'declaredAt' | 'acceptedAt'> & { declaredAt: any } = {
         contractId: selectedContract.id,
         propertyId: selectedContract.propertyId,
@@ -137,12 +153,13 @@ export default function PagosPage() {
         status: "pendiente",
         declaredBy: currentUser.uid,
         declaredAt: serverTimestamp(),
+        ...(attachmentUrlValue && { attachmentUrl: attachmentUrlValue }), // Add if attachment exists
       };
       
       const paymentsCollectionRef = collection(db, "contracts", selectedContract.id, "payments");
       await addDoc(paymentsCollectionRef, paymentData);
       
-      toast({ title: "Pago Declarado", description: `Tu pago de ${values.type} por $${values.amount.toLocaleString('es-CL')} ha sido declarado y está pendiente de aprobación.` });
+      toast({ title: "Pago Declarado", description: `Tu pago de ${values.type} por $${values.amount.toLocaleString('es-CL')} ha sido declarado.` });
       fetchPayments(); 
       setIsPaymentFormOpen(false);
     } catch (error) {
@@ -182,6 +199,7 @@ export default function PagosPage() {
   if (isLoading && payments.length === 0) return <div className="p-4">Cargando pagos...</div>;
 
   const paymentStatusOptions: (Payment["status"] | "todos")[] = ["todos", "pendiente", "aceptado"];
+  const userRole = currentUser?.role;
 
   const filteredPayments = payments
     .filter(p => statusFilter === "todos" || p.status === statusFilter)
@@ -192,7 +210,7 @@ export default function PagosPage() {
       (userRole === "Arrendador" && (p.tenantName || "").toLowerCase().includes(searchTerm.toLowerCase())) ||
       (userRole === "Inquilino" && (p.landlordName || "").toLowerCase().includes(searchTerm.toLowerCase()))
     );
-  const userRole = currentUser?.role;
+  
 
   return (
     <div className="space-y-6">
@@ -269,3 +287,4 @@ export default function PagosPage() {
     </div>
   );
 }
+

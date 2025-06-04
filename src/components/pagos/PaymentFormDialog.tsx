@@ -11,16 +11,16 @@ import {
   Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose
 } from "@/components/ui/dialog";
 import {
-  Form, FormControl, FormField, FormItem, FormLabel, FormMessage
+  Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription as UiFormDescription
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarIcon, FileText, DollarSign, Info, Paperclip } from "lucide-react";
+import { CalendarIcon, DollarSign, Info, Paperclip } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { Contract, PaymentType } from "@/types";
+import type { Contract } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -30,7 +30,7 @@ const paymentFormSchema = z.object({
   amount: z.coerce.number().positive({ message: "El monto debe ser positivo." }),
   paymentDate: z.date({ required_error: "La fecha de pago es requerida." }),
   notes: z.string().optional(),
-  // attachment: typeof window === 'undefined' ? z.any().optional() : z.instanceof(FileList).optional(), // For file upload, more complex
+  attachment: z.custom<FileList>((val) => val instanceof FileList, "Se esperaba un archivo").optional(),
 });
 
 export type PaymentFormValues = z.infer<typeof paymentFormSchema>;
@@ -38,7 +38,7 @@ export type PaymentFormValues = z.infer<typeof paymentFormSchema>;
 interface PaymentFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (data: PaymentFormValues) => Promise<void>; // Make it async
+  onSave: (data: PaymentFormValues) => Promise<void>; 
   tenantContracts: Contract[];
 }
 
@@ -54,6 +54,7 @@ export function PaymentFormDialog({ open, onOpenChange, onSave, tenantContracts 
       amount: undefined,
       paymentDate: new Date(),
       notes: "",
+      attachment: undefined,
     },
   });
 
@@ -71,7 +72,7 @@ export function PaymentFormDialog({ open, onOpenChange, onSave, tenantContracts 
       if (!isOpen) {
         form.reset({ 
             contractId: tenantContracts.find(c => c.status === "Activo")?.id || "",
-            type: "arriendo", amount: undefined, paymentDate: new Date(), notes: "" 
+            type: "arriendo", amount: undefined, paymentDate: new Date(), notes: "", attachment: undefined
         });
       }
     }}>
@@ -195,26 +196,28 @@ export function PaymentFormDialog({ open, onOpenChange, onSave, tenantContracts 
                 </FormItem>
               )}
             />
-            {/* 
             <FormField
               control={form.control}
               name="attachment"
-              render={({ field }) => (
+              render={({ field: { onChange, value, ...rest } }) => ( // Destructure to handle FileList
                 <FormItem>
-                  <FormLabel>Adjuntar Comprobante (Opcional)</FormLabel>
+                  <FormLabel className="flex items-center">
+                    <Paperclip className="h-4 w-4 mr-2 text-muted-foreground" />
+                    Adjuntar Comprobante (Opcional)
+                  </FormLabel>
                   <FormControl>
-                    <div className="relative">
-                      <Paperclip className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input type="file" className="pl-9 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-                        onChange={(e) => field.onChange(e.target.files)}
-                      />
-                    </div>
+                    <Input 
+                      type="file" 
+                      className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+                      onChange={(e) => onChange(e.target.files)} // Pass FileList to RHF
+                      {...rest} 
+                    />
                   </FormControl>
+                  <UiFormDescription>Puedes adjuntar imágenes o PDF.</UiFormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            */}
             <DialogFooter className="pt-4">
               <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
               <Button type="submit" disabled={form.formState.isSubmitting}>
@@ -227,3 +230,4 @@ export function PaymentFormDialog({ open, onOpenChange, onSave, tenantContracts 
     </Dialog>
   );
 }
+

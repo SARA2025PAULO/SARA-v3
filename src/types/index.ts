@@ -70,3 +70,4 @@ export interface Payment {
   declaredBy: string; // UID of tenant who declared
   attachmentUrl?: string; // Optional URL for payment proof
 }
+
