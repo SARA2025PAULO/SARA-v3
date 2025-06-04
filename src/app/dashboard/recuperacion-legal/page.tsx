@@ -10,9 +10,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Gavel, AlertTriangle, FileText, Download, Printer } from "lucide-react";
+import { Gavel, AlertTriangle, FileText, Download, Printer, ListChecks } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ContractDisplayForLegal } from "@/components/recuperacion-legal/ContractDisplayForLegal";
+import { PaymentHistoryCertificate } from "@/components/recuperacion-legal/PaymentHistoryCertificate"; // Import new component
 
 // Placeholder for individual document display component
 const LegalDocumentPlaceholder = ({ title, description }: { title: string; description: string }) => (
@@ -139,10 +140,19 @@ export default function RecuperacionLegalPage() {
                     registrada en S.A.R.A para el contrato seleccionado.
                   </p>
                   
-                  <LegalDocumentPlaceholder 
-                    title="Certificado de Historial de Pagos"
-                    description="Genera un registro de los pagos declarados y aceptados para este contrato. Útil para evidenciar montos adeudados."
-                  />
+                  {/* Replace placeholder with actual component */}
+                  <Card className="mt-4">
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center">
+                        <ListChecks className="mr-2 h-5 w-5 text-primary" />
+                        Certificado de Historial de Pagos
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <PaymentHistoryCertificate contract={selectedContract} />
+                    </CardContent>
+                  </Card>
+                  
                   <LegalDocumentPlaceholder 
                     title="Historial de Incidentes"
                     description="Recopila los incidentes registrados para este contrato, especialmente aquellos que constituyan incumplimientos."
