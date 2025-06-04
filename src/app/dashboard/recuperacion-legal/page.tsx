@@ -10,29 +10,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Gavel, AlertTriangle, FileText, Download, Printer, ListChecks, ListX } from "lucide-react";
+import { Gavel, AlertTriangle, FileText, Download, Printer, ListChecks, ListX, MailWarning } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ContractDisplayForLegal } from "@/components/recuperacion-legal/ContractDisplayForLegal";
 import { PaymentHistoryCertificate } from "@/components/recuperacion-legal/PaymentHistoryCertificate";
-import { IncidentHistoryDocument } from "@/components/recuperacion-legal/IncidentHistoryDocument"; // Import new component
-
-// Placeholder for individual document display component
-const LegalDocumentPlaceholder = ({ title, description, icon: Icon }: { title: string; description: string; icon: React.ElementType }) => (
-  <Card className="mt-4">
-    <CardHeader>
-      <CardTitle className="text-lg flex items-center">
-        <Icon className="mr-2 h-5 w-5 text-primary" />
-        {title}
-      </CardTitle>
-    </CardHeader>
-    <CardContent>
-      <p className="text-sm text-muted-foreground">{description}</p>
-      <Button variant="outline" size="sm" className="mt-3" disabled>
-        Generar y Ver (Próximamente)
-      </Button>
-    </CardContent>
-  </Card>
-);
+import { IncidentHistoryDocument } from "@/components/recuperacion-legal/IncidentHistoryDocument";
+import { PriorNoticeDraft } from "@/components/recuperacion-legal/PriorNoticeDraft";
 
 export default function RecuperacionLegalPage() {
   const { currentUser } = useAuth();
@@ -156,7 +139,7 @@ export default function RecuperacionLegalPage() {
                   <Card className="mt-4">
                     <CardHeader>
                       <CardTitle className="text-lg flex items-center">
-                        <ListX className="mr-2 h-5 w-5 text-primary" /> {/* Updated Icon */}
+                        <ListX className="mr-2 h-5 w-5 text-primary" />
                         Historial de Incidentes
                       </CardTitle>
                     </CardHeader>
@@ -177,11 +160,17 @@ export default function RecuperacionLegalPage() {
                     </CardContent>
                   </Card>
 
-                  <LegalDocumentPlaceholder 
-                    title="Borrador de Notificación Previa al Inquilino"
-                    description="Genera un borrador de notificación de incumplimiento para enviar al inquilino, otorgando un plazo para regularizar la situación."
-                    icon={FileText}
-                  />
+                  <Card className="mt-4">
+                    <CardHeader>
+                        <CardTitle className="text-lg flex items-center">
+                            <MailWarning className="mr-2 h-5 w-5 text-primary" />
+                            Borrador de Notificación Previa al Inquilino
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <PriorNoticeDraft contract={selectedContract} />
+                    </CardContent>
+                  </Card>
                   
                   <Separator className="my-6" />
 
@@ -202,3 +191,4 @@ export default function RecuperacionLegalPage() {
     </div>
   );
 }
+
