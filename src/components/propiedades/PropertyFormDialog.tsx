@@ -31,9 +31,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import type { Property, PropertyStatus } from "@/types";
+import type { Property } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
-import { useEffect } from "react"; // Changed from useState to useEffect for reset logic
+import { useEffect } from "react"; 
 import { useToast } from "@/hooks/use-toast";
 
 
@@ -46,6 +46,7 @@ export const propertyFormSchema = z.object({
   bathrooms: z.coerce.number().int().min(0, { message: "Número de baños no puede ser negativo."}).optional().or(z.literal('')),
   area: z.coerce.number().positive({ message: "El área debe ser un número positivo."}).optional().or(z.literal('')),
   imageUrl: z.string().url({ message: "Por favor ingresa una URL válida para la imagen."}).optional().or(z.literal('')),
+  potentialTenantEmail: z.string().email({ message: "Por favor ingresa un correo válido." }).optional().or(z.literal('')),
 });
 
 export type PropertyFormValues = z.infer<typeof propertyFormSchema>;
@@ -73,6 +74,7 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
       bathrooms: undefined,
       area: undefined,
       imageUrl: "",
+      potentialTenantEmail: "",
     },
   });
   
@@ -87,6 +89,7 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
         bathrooms: property.bathrooms ?? undefined,
         area: property.area ?? undefined,
         imageUrl: property.imageUrl || "",
+        potentialTenantEmail: property.potentialTenantEmail || "",
       } : {
         address: "",
         description: "",
@@ -96,6 +99,7 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
         bathrooms: undefined,
         area: undefined,
         imageUrl: "",
+        potentialTenantEmail: "",
       });
     }
   }, [property, open, form]);
@@ -113,6 +117,7 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
       bedrooms: values.bedrooms === '' ? undefined : values.bedrooms,
       bathrooms: values.bathrooms === '' ? undefined : values.bathrooms,
       area: values.area === '' ? undefined : values.area,
+      potentialTenantEmail: values.potentialTenantEmail === '' ? undefined : values.potentialTenantEmail,
     };
     onSave(cleanedValues, isEditing, isEditing && property ? property.id : undefined);
   }
@@ -249,9 +254,22 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
               name="imageUrl"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>URL de la Imagen</FormLabel>
+                  <FormLabel>URL de la Imagen (Opcional)</FormLabel>
                   <FormControl>
                     <Input placeholder="https://ejemplo.com/imagen.png" {...field} value={field.value ?? ''} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="potentialTenantEmail"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Correo Electrónico del Potencial Inquilino (Opcional)</FormLabel>
+                  <FormControl>
+                    <Input type="email" placeholder="inquilino@ejemplo.com" {...field} value={field.value ?? ''} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -271,4 +289,3 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
     </Dialog>
   );
 }
-

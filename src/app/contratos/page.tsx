@@ -1,31 +1,31 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { ContractCard } from "@/components/contratos/ContractCard";
 import { ContractFormDialog } from "@/components/contratos/ContractFormDialog";
+import type { ContractFormValues } from "@/components/contratos/ContractFormDialog";
 import { ContractApprovalDialog } from "@/components/contratos/ContractApprovalDialog";
-import type { Contract, Property } from "@/types";
+import type { Contract, Property, UserProfile } from "@/types";
 import { PlusCircle, FileText, Search } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-
-
-// Mock Data - replace with actual data fetching
-const initialContracts: Contract[] = [
-  { id: "c1", propertyId: "p1", propertyName: "Avenida Rivadavia 1234", tenantId: "tenant001", tenantName: "Lisa Simpson", landlordId: "landlord123", landlordName: "Ned Flanders", startDate: "2024-01-15", endDate: "2025-01-14", rentAmount: 350000, status: "Activo", createdAt: "2024-01-10" },
-  { id: "c2", propertyId: "p2", propertyName: "Calle Falsa 123", tenantId: "tenant002", tenantName: "Bart Simpson", landlordId: "landlord123", landlordName: "Ned Flanders", startDate: "2024-03-01", endDate: "2025-02-28", rentAmount: 480000, status: "Pendiente", createdAt: "2024-02-20" },
-  { id: "c3", propertyId: "p3", propertyName: "Loft Ciudad Gótica", tenantId: "tenant001", tenantName: "Lisa Simpson", landlordId: "anotherLord", landlordName: "Selina Kyle", startDate: "2023-11-01", endDate: "2024-10-31", rentAmount: 400000, status: "Finalizado", createdAt: "2023-10-25" },
-];
-
-const mockProperties: Property[] = [ // For landlord to select when creating contract
-  { id: "p1", address: "Avenida Rivadavia 1234, Buenos Aires", status: "Arrendada", description: "...", ownerId: "landlord123" },
-  { id: "p4", address: "Avenida Corrientes 5678, Buenos Aires", status: "Disponible", description: "Moderno monoambiente céntrico.", ownerId: "landlord123", price: 250000 },
-  { id: "p5", address: "Calle Defensa 910, San Telmo", status: "Disponible", description: "PH antiguo reciclado con patio.", ownerId: "landlord123", price: 320000 },
-];
+import { db } from "@/lib/firebase";
+import {
+  collection,
+  doc,
+  addDoc,
+  getDocs,
+  query,
+  where,
+  serverTimestamp,
+  updateDoc,
+  orderBy,
+  limit
+} from "firebase/firestore";
 
 
 export default function ContratosPage() {
@@ -33,11 +33,13 @@ export default function ContratosPage() {
   const { toast } = useToast();
   
   const [contracts, setContracts] = useState<Contract[]>([]);
-  const [landlordProperties, setLandlordProperties] = useState<Property[]>([]);
+  const [landlordProperties, setLandlordProperties] = useState<Property[]>([]); // For landlord to select when creating contract
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
 
   const [isContractFormOpen, setIsContractFormOpen] = useState(false);
-  const [editingContract, setEditingContract] = useState<Contract | null>(null); // For editing existing contract
+  const [editingContract, setEditingContract] = useState<Contract | null>(null); 
   
   const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
   const [contractToApprove, setContractToApprove] = useState<Contract | null>(null);
@@ -45,45 +47,162 @@ export default function ContratosPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"todos" | Contract["status"]>("todos");
 
-  useEffect(() => {
-    if (currentUser) {
-      // Simulate fetching contracts based on user role
-      if (currentUser.role === "Arrendador") {
-        setContracts(initialContracts.filter(c => c.landlordId === currentUser.uid || initialContracts.indexOf(c) < 2)); // Mock
-        setLandlordProperties(mockProperties.filter(p => p.ownerId === currentUser.uid || mockProperties.indexOf(p) > 0)); // Mock
-      } else if (currentUser.role === "Inquilino") {
-        setContracts(initialContracts.filter(c => c.tenantId === currentUser.uid || initialContracts.indexOf(c) % 2 === 0)); // Mock
+  // Fetch properties for landlord to select
+  const fetchLandlordProperties = useCallback(async () => {
+    if (currentUser && currentUser.role === "Arrendador" && db) {
+      try {
+        const propsRef = collection(db, "users", currentUser.uid, "properties");
+        const qProps = query(propsRef, where("status", "in", ["Disponible", "Arrendada"])); // Allow selecting already rented if editing same contract
+        const propsSnapshot = await getDocs(qProps);
+        const fetchedProps = propsSnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Property));
+        setLandlordProperties(fetchedProps);
+      } catch (error) {
+        console.error("Error fetching landlord properties:", error);
+        toast({ title: "Error", description: "No se pudieron cargar las propiedades.", variant: "destructive" });
       }
-    } else {
-      // Fallback if no user, show limited data for demo purposes
-      setContracts(initialContracts.slice(0,1));
     }
-    setIsLoading(false);
-  }, [currentUser]);
+  }, [currentUser, toast]);
 
-  const handleSaveContract = (contractData: Contract, isEditingFlag: boolean) => {
-    if (isEditingFlag) {
-      setContracts(prev => prev.map(c => c.id === contractData.id ? contractData : c));
-      toast({ title: "Contrato Actualizado", description: `El contrato para ${contractData.propertyName} ha sido guardado.` });
-    } else {
-      setContracts(prev => [contractData, ...prev]);
-      toast({ title: "Contrato Creado", description: `Nuevo contrato para ${contractData.propertyName} está ${contractData.status}.` });
+  // Fetch contracts based on user role
+  const fetchContracts = useCallback(async () => {
+    if (!currentUser || !db) {
+      setIsLoading(false);
+      setContracts([]);
+      return;
     }
-    setEditingContract(null);
-    setIsContractFormOpen(false);
+    setIsLoading(true);
+    try {
+      const contractsCollectionRef = collection(db, "contracts");
+      let q;
+      if (currentUser.role === "Arrendador") {
+        q = query(contractsCollectionRef, where("landlordId", "==", currentUser.uid), orderBy("createdAt", "desc"));
+      } else if (currentUser.role === "Inquilino") {
+        q = query(contractsCollectionRef, where("tenantId", "==", currentUser.uid), orderBy("createdAt", "desc"));
+      } else {
+        setContracts([]);
+        setIsLoading(false);
+        return;
+      }
+      const querySnapshot = await getDocs(q);
+      const fetchedContracts = querySnapshot.docs.map(docSnap => {
+        const data = docSnap.data();
+        return {
+          id: docSnap.id,
+          ...data,
+          startDate: data.startDate, // Assumes stored as ISO string or Firestore Timestamp converted
+          endDate: data.endDate,
+          createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt,
+          updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : data.updatedAt,
+        } as Contract;
+      });
+      setContracts(fetchedContracts);
+    } catch (error) {
+      console.error("Error fetching contracts:", error);
+      toast({ title: "Error al Cargar Contratos", description: "No se pudieron obtener los contratos.", variant: "destructive" });
+    } finally {
+      setIsLoading(false);
+    }
+  }, [currentUser, toast]);
+
+  useEffect(() => {
+    fetchContracts();
+    if (currentUser?.role === "Arrendador") {
+      fetchLandlordProperties();
+    }
+  }, [currentUser, fetchContracts, fetchLandlordProperties]);
+
+  const handleSaveContract = async (values: ContractFormValues, isEditingFlag: boolean, originalContractId?: string) => {
+    if (!currentUser || currentUser.role !== "Arrendador" || !db) {
+      toast({ title: "Error de Permiso", description: "Acción no permitida.", variant: "destructive" });
+      return;
+    }
+    setIsSubmitting(true);
+
+    try {
+      // 1. Find Tenant UID by email
+      const usersRef = collection(db, "users");
+      const tenantQuery = query(usersRef, where("email", "==", values.tenantEmail), where("role", "==", "Inquilino"), limit(1));
+      const tenantSnapshot = await getDocs(tenantQuery);
+
+      if (tenantSnapshot.empty) {
+        toast({ title: "Inquilino no Encontrado", description: `No se encontró un inquilino con el rol correcto para el correo: ${values.tenantEmail}`, variant: "destructive" });
+        setIsSubmitting(false);
+        return;
+      }
+      const tenantDoc = tenantSnapshot.docs[0];
+      const tenantProfile = tenantDoc.data() as UserProfile;
+      const tenantUid = tenantDoc.id;
+
+      // 2. Get selected property details (mainly for propertyName)
+      const selectedProperty = landlordProperties.find(p => p.id === values.propertyId);
+      if (!selectedProperty) {
+          toast({ title: "Error", description: "Propiedad seleccionada no válida.", variant: "destructive" });
+          setIsSubmitting(false);
+          return;
+      }
+
+      const contractData = {
+        propertyId: values.propertyId,
+        propertyName: selectedProperty.address,
+        tenantId: tenantUid,
+        tenantEmail: values.tenantEmail,
+        tenantName: tenantProfile.displayName || values.tenantName, // Use profile name or fallback to form input
+        landlordId: currentUser.uid,
+        landlordName: currentUser.displayName,
+        startDate: values.startDate.toISOString(),
+        endDate: values.endDate.toISOString(),
+        rentAmount: values.rentAmount,
+        terms: values.terms || "",
+        status: isEditingFlag && editingContract ? editingContract.status : "Pendiente", // Preserve status on edit, else Pendiente
+        updatedAt: serverTimestamp(),
+      };
+
+      if (isEditingFlag && originalContractId) {
+        const contractDocRef = doc(db, "contracts", originalContractId);
+        await updateDoc(contractDocRef, contractData);
+        toast({ title: "Contrato Actualizado", description: `El contrato para ${selectedProperty.address} ha sido guardado.` });
+      } else {
+        const finalContractData = { ...contractData, createdAt: serverTimestamp() };
+        await addDoc(collection(db, "contracts"), finalContractData);
+        toast({ title: "Contrato Creado", description: `Nuevo contrato para ${selectedProperty.address} está ${finalContractData.status}.` });
+      }
+      
+      fetchContracts(); // Refresh contracts list
+      setIsContractFormOpen(false);
+      setEditingContract(null);
+
+    } catch (error) {
+      console.error("Error saving contract:", error);
+      toast({ title: "Error al Guardar Contrato", description: "No se pudo guardar el contrato.", variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleApproveContract = (contractId: string) => {
-    setContracts(prev => prev.map(c => c.id === contractId ? { ...c, status: "Activo" } : c));
-    toast({ title: "Contrato Aprobado", description: "El contrato ha sido marcado como activo.", className: "bg-accent text-accent-foreground" });
-    setIsApprovalDialogOpen(false);
+  const handleApprovalAction = async (contractId: string, newStatus: "Activo" | "Rechazado") => {
+    if (!db) return;
+    setIsSubmitting(true);
+    try {
+      const contractDocRef = doc(db, "contracts", contractId);
+      await updateDoc(contractDocRef, { 
+        status: newStatus,
+        updatedAt: serverTimestamp(),
+      });
+      toast({ 
+        title: `Contrato ${newStatus === "Activo" ? "Aprobado" : "Rechazado"}`, 
+        description: `El contrato ha sido marcado como ${newStatus.toLowerCase()}.`,
+        className: newStatus === "Activo" ? "bg-accent text-accent-foreground" : undefined,
+      });
+      fetchContracts(); // Refresh list
+      setIsApprovalDialogOpen(false);
+    } catch (error) {
+      console.error(`Error ${newStatus === "Activo" ? "approving" : "rejecting"} contract:`, error);
+      toast({ title: "Error", description: `No se pudo ${newStatus === "Activo" ? "aprobar" : "rechazar"} el contrato.`, variant: "destructive" });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
-  const handleRejectContract = (contractId: string) => {
-    setContracts(prev => prev.map(c => c.id === contractId ? { ...c, status: "Rechazado" } : c));
-    toast({ title: "Contrato Rechazado", variant: "destructive" });
-    setIsApprovalDialogOpen(false);
-  };
 
   const openApprovalDialog = (contract: Contract) => {
     setContractToApprove(contract);
@@ -103,11 +222,11 @@ export default function ContratosPage() {
     .filter(c => statusFilter === "todos" || c.status === statusFilter)
     .filter(c => 
       (c.propertyName || c.propertyId).toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (currentUser?.role === "Arrendador" && (c.tenantName || c.tenantId).toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (currentUser?.role === "Inquilino" && (c.landlordName || c.landlordId).toLowerCase().includes(searchTerm.toLowerCase()))
+      (currentUser?.role === "Arrendador" && (c.tenantName || c.tenantEmail).toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (currentUser?.role === "Inquilino" && (c.landlordName || "").toLowerCase().includes(searchTerm.toLowerCase()))
     );
     
-  if (isLoading) return <div className="p-4">Cargando contratos...</div>;
+  if (isLoading && contracts.length === 0) return <div className="p-4">Cargando contratos...</div>;
 
   const contractStatusOptions: (Contract["status"] | "todos")[] = ["todos", "Pendiente", "Activo", "Finalizado", "Rechazado", "Aprobado"];
 
@@ -117,9 +236,12 @@ export default function ContratosPage() {
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
         <h1 className="text-3xl font-bold font-headline">Gestión de Contratos</h1>
         {currentUser?.role === "Arrendador" && (
-          <Button onClick={() => openContractFormDialog()} size="lg">
+          <Button onClick={() => openContractFormDialog()} size="lg" disabled={isSubmitting || landlordProperties.length === 0}>
             <PlusCircle className="mr-2 h-5 w-5" /> Crear Nuevo Contrato
           </Button>
+        )}
+         {currentUser?.role === "Arrendador" && landlordProperties.length === 0 && !isLoading && (
+            <p className="text-sm text-muted-foreground">Añade propiedades disponibles para poder crear contratos.</p>
         )}
       </div>
 
@@ -152,7 +274,7 @@ export default function ContratosPage() {
           <p className="text-muted-foreground">
             {searchTerm || statusFilter !== "todos" ? "Intenta con otros filtros o " : (currentUser?.role === "Arrendador" ? "Comienza por " : "")}
             {currentUser?.role === "Arrendador" && 
-              <Button variant="link" className="p-0 h-auto" onClick={() => openContractFormDialog()}>crear un nuevo contrato</Button>
+              <Button variant="link" className="p-0 h-auto" onClick={() => openContractFormDialog()} disabled={landlordProperties.length === 0}>crear un nuevo contrato</Button>
             }
             {currentUser?.role !== "Arrendador" && "No tienes contratos que coincidan con los filtros."}
           </p>
@@ -165,8 +287,8 @@ export default function ContratosPage() {
               contract={contract}
               userRole={currentUser?.role || null}
               onViewDetails={handleViewDetails}
-              onApprove={currentUser?.role === "Inquilino" ? () => openApprovalDialog(contract) : undefined}
-              onReject={currentUser?.role === "Inquilino" ? () => openApprovalDialog(contract) : undefined} // Using same dialog for reject for now
+              onApprove={currentUser?.role === "Inquilino" && contract.status === "Pendiente" ? () => openApprovalDialog(contract) : undefined}
+              onReject={currentUser?.role === "Inquilino" && contract.status === "Pendiente" ? () => openApprovalDialog(contract) : undefined} 
               onManage={currentUser?.role === "Arrendador" ? () => openContractFormDialog(contract) : undefined}
             />
           ))}
@@ -183,13 +305,14 @@ export default function ContratosPage() {
         />
       )}
       
-      {currentUser?.role === "Inquilino" && contractToApprove && (
+      {contractToApprove && ( // No role check needed here, dialog handles content based on what's passed
         <ContractApprovalDialog
           contract={contractToApprove}
           open={isApprovalDialogOpen}
           onOpenChange={setIsApprovalDialogOpen}
-          onApprove={handleApproveContract}
-          onReject={handleRejectContract}
+          onApprove={() => handleApprovalAction(contractToApprove.id, "Activo")}
+          onReject={() => handleApprovalAction(contractToApprove.id, "Rechazado")}
+          // Pass isSubmitting to disable buttons in dialog if needed
         />
       )}
     </div>

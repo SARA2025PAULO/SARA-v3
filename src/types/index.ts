@@ -21,6 +21,7 @@ export interface Property {
   bedrooms?: number;
   bathrooms?: number;
   area?: number; // Square meters/feet
+  potentialTenantEmail?: string; // Email of a potential tenant, optional
   createdAt?: string; // ISO date string from Timestamp
   updatedAt?: string; // ISO date string from Timestamp
 }
@@ -28,17 +29,19 @@ export interface Property {
 export type ContractStatus = "Pendiente" | "Aprobado" | "Rechazado" | "Activo" | "Finalizado";
 
 export interface Contract {
-  id: string;
+  id: string; // Firestore document ID
   propertyId: string;
   propertyName?: string; // Denormalized for easier display
-  tenantId: string;
-  tenantName?: string; // Denormalized
-  landlordId: string;
-  landlordName?: string; // Denormalized
+  tenantId: string; // UID of the Tenant user
+  tenantEmail: string; // Email used by landlord to identify tenant
+  tenantName?: string; // Denormalized, from tenant's profile or form input
+  landlordId: string; // UID of the Landlord user
+  landlordName?: string; // Denormalized, from landlord's profile
   startDate: string; // ISO date string
   endDate: string; // ISO date string
   rentAmount: number;
   status: ContractStatus;
   terms?: string; // Additional contract terms
   createdAt: string; // ISO date string
+  updatedAt?: string; // ISO date string for when the contract was last updated
 }

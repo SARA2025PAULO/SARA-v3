@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { db } from "@/lib/firebase";
-import { collection, doc, setDoc, addDoc, getDocs, query, serverTimestamp, updateDoc, deleteDoc } from "firebase/firestore";
+import { collection, doc, setDoc, addDoc, getDocs, query, serverTimestamp, updateDoc, deleteDoc, orderBy } from "firebase/firestore";
 import { Card, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -45,8 +45,7 @@ export default function PropiedadesPage() {
         setIsLoading(true);
         try {
           const propertiesCollectionRef = collection(db, "users", currentUser.uid, "properties");
-          // const q = query(propertiesCollectionRef, orderBy("createdAt", "desc")); // Optional: order by creation date
-          const q = query(propertiesCollectionRef);
+          const q = query(propertiesCollectionRef, orderBy("createdAt", "desc")); 
           const querySnapshot = await getDocs(q);
           const fetchedProperties: Property[] = querySnapshot.docs.map(docSnap => {
             const data = docSnap.data();
@@ -61,6 +60,7 @@ export default function PropiedadesPage() {
               bedrooms: data.bedrooms,
               bathrooms: data.bathrooms,
               area: data.area,
+              potentialTenantEmail: data.potentialTenantEmail,
               createdAt: data.createdAt?.toDate().toISOString(),
               updatedAt: data.updatedAt?.toDate().toISOString(),
             } as Property;
@@ -94,18 +94,30 @@ export default function PropiedadesPage() {
     setIsLoading(true); 
 
     try {
+      const propertyData = {
+        ...values,
+        ownerId: currentUser.uid,
+        // Ensure optional fields that might be empty strings are converted to undefined
+        price: values.price || undefined,
+        bedrooms: values.bedrooms || undefined,
+        bathrooms: values.bathrooms || undefined,
+        area: values.area || undefined,
+        imageUrl: values.imageUrl || undefined,
+        potentialTenantEmail: values.potentialTenantEmail || undefined,
+      };
+
+
       if (isEditing && originalPropertyId) {
         const propertyDocRef = doc(db, "users", currentUser.uid, "properties", originalPropertyId);
         const updatedPropertyData = {
-          ...values,
-          ownerId: currentUser.uid,
+          ...propertyData,
           updatedAt: serverTimestamp(),
         };
         await setDoc(propertyDocRef, updatedPropertyData, { merge: true });
 
         setProperties(prev => prev.map(p => 
           p.id === originalPropertyId 
-            ? { ...p, ...values, updatedAt: new Date().toISOString() } 
+            ? { ...p, ...updatedPropertyData, updatedAt: new Date().toISOString() } 
             : p
         ));
         toast({ title: "Propiedad Actualizada", description: `Los detalles de "${values.address}" se han guardado.` });
@@ -113,25 +125,17 @@ export default function PropiedadesPage() {
       } else { 
         const propertiesCollectionRef = collection(db, "users", currentUser.uid, "properties");
         const newPropertyData = {
-          ...values,
-          ownerId: currentUser.uid,
+          ...propertyData,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         };
         const newDocRef = await addDoc(propertiesCollectionRef, newPropertyData);
         
         const newPropertyForState: Property = {
-            ...values, // spread form values
+            ...newPropertyData,
             id: newDocRef.id,
-            ownerId: currentUser.uid,
             createdAt: new Date().toISOString(), 
             updatedAt: new Date().toISOString(),
-            // Ensure optional fields from PropertyFormValues are correctly typed for Property
-            price: values.price ?? undefined,
-            bedrooms: values.bedrooms ?? undefined,
-            bathrooms: values.bathrooms ?? undefined,
-            area: values.area ?? undefined,
-            imageUrl: values.imageUrl ?? undefined,
         };
         setProperties(prev => [newPropertyForState, ...prev]);
         toast({ title: "Propiedad Añadida", description: `"${values.address}" se ha añadido a tus propiedades.` });
@@ -157,16 +161,21 @@ export default function PropiedadesPage() {
   };
 
   const handleViewDetails = (property: Property) => {
-    console.log("View details for:", property);
-    toast({ title: "Vista de Detalles", description: `Mostrando detalles para ${property.address} (funcionalidad pendiente).`});
+    // For now, just a toast. In future, could navigate to a property detail page
+    // or open a more detailed modal.
+    toast({ 
+      title: property.address, 
+      description: `Estado: ${property.status}. ${property.potentialTenantEmail ? `Potencial inquilino: ${property.potentialTenantEmail}` : ''} (Funcionalidad de vista detallada pendiente).`
+    });
   };
 
   const filteredProperties = properties.filter(property =>
     property.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    property.description.toLowerCase().includes(searchTerm.toLowerCase())
+    (property.description && property.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+    (property.potentialTenantEmail && property.potentialTenantEmail.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  if (isLoading && properties.length === 0) { // Show loading only on initial load or when saving
+  if (isLoading && properties.length === 0) { 
     return <div className="p-4">Cargando propiedades...</div>;
   }
 
@@ -184,7 +193,7 @@ export default function PropiedadesPage() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <Input 
             type="search" 
-            placeholder="Buscar por dirección o descripción..." 
+            placeholder="Buscar por dirección, descripción o email inquilino..." 
             className="pl-10 w-full"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
@@ -227,7 +236,8 @@ export default function PropiedadesPage() {
                         <Badge variant="secondary" className={`w-fit text-xs mb-2 ${property.status === "Disponible" ? "bg-accent text-accent-foreground" : property.status === "Arrendada" ? "bg-blue-200 text-blue-800" : "bg-yellow-200 text-yellow-800"}`}>
                             {property.status}
                         </Badge>
-                        <CardDescription className="text-sm text-muted-foreground mb-2 flex-grow">{property.description.substring(0,100)}{property.description.length > 100 && '...'}</CardDescription>
+                        <CardDescription className="text-sm text-muted-foreground mb-1 flex-grow">{property.description.substring(0,100)}{property.description.length > 100 && '...'}</CardDescription>
+                        {property.potentialTenantEmail && <p className="text-xs text-primary/80 mb-2">Potencial Inquilino: {property.potentialTenantEmail}</p>}
                          <div className="text-sm text-primary font-medium mb-2">${property.price?.toLocaleString('es-CL') || 'N/A'}/mes</div>
                         <div className="flex justify-end space-x-2 mt-auto">
                             <Button variant="outline" size="sm" onClick={() => handleEditProperty(property)}><Edit3 className="h-4 w-4 mr-1" /> Editar</Button>

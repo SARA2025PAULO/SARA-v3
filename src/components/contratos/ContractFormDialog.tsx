@@ -18,7 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Mail } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Contract, Property, UserProfile } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
@@ -27,8 +27,8 @@ import { useToast } from "@/hooks/use-toast";
 
 const contractFormSchema = z.object({
   propertyId: z.string().min(1, { message: "Debes seleccionar una propiedad." }),
-  tenantId: z.string().min(1, { message: "Debes ingresar el ID del inquilino." }), // In a real app, this might be a search/select for users
-  tenantName: z.string().min(2, {message: "Nombre del inquilino es requerido."}),
+  tenantEmail: z.string().email({ message: "Debe ser un correo electrónico válido." }),
+  tenantName: z.string().min(2, {message: "Nombre del inquilino es requerido."}), // Fallback name if not found by email
   startDate: z.date({ required_error: "La fecha de inicio es requerida." }),
   endDate: z.date({ required_error: "La fecha de fin es requerida." }),
   rentAmount: z.coerce.number().positive({ message: "El monto del arriendo debe ser positivo." }),
@@ -41,13 +41,11 @@ const contractFormSchema = z.object({
 type ContractFormValues = z.infer<typeof contractFormSchema>;
 
 interface ContractFormDialogProps {
-  contract?: Contract | null;
+  contract?: Contract | null; // For editing
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (contractData: Contract, isEditing: boolean) => void;
-  availableProperties: Property[]; // Landlord's available properties
-  // In a real app, you'd also need a way to select tenants (e.g., a list of users with 'Inquilino' role)
-  // For now, tenantId will be a text input.
+  onSave: (data: ContractFormValues, isEditing: boolean, originalContractId?: string) => void;
+  availableProperties: Property[]; 
 }
 
 export function ContractFormDialog({ contract, open, onOpenChange, onSave, availableProperties }: ContractFormDialogProps) {
@@ -59,7 +57,7 @@ export function ContractFormDialog({ contract, open, onOpenChange, onSave, avail
     resolver: zodResolver(contractFormSchema),
     defaultValues: contract ? {
       propertyId: contract.propertyId,
-      tenantId: contract.tenantId,
+      tenantEmail: contract.tenantEmail,
       tenantName: contract.tenantName || "",
       startDate: new Date(contract.startDate),
       endDate: new Date(contract.endDate),
@@ -67,7 +65,7 @@ export function ContractFormDialog({ contract, open, onOpenChange, onSave, avail
       terms: contract.terms || "",
     } : {
       propertyId: "",
-      tenantId: "",
+      tenantEmail: "",
       tenantName: "",
       startDate: undefined,
       endDate: undefined,
@@ -76,20 +74,32 @@ export function ContractFormDialog({ contract, open, onOpenChange, onSave, avail
     },
   });
 
+  // Pre-fill tenant email if a property with potentialTenantEmail is selected
+  const selectedPropertyId = form.watch("propertyId");
+  useEffect(() => {
+    if (selectedPropertyId && !isEditing) { // Only prefill for new contracts
+      const selectedProp = availableProperties.find(p => p.id === selectedPropertyId);
+      if (selectedProp?.potentialTenantEmail) {
+        form.setValue("tenantEmail", selectedProp.potentialTenantEmail, { shouldValidate: true });
+      }
+    }
+  }, [selectedPropertyId, availableProperties, form, isEditing]);
+
+
   useEffect(() => {
     if (open) {
       form.reset(contract ? {
         propertyId: contract.propertyId,
-        tenantId: contract.tenantId,
+        tenantEmail: contract.tenantEmail,
         tenantName: contract.tenantName || "",
         startDate: new Date(contract.startDate),
         endDate: new Date(contract.endDate),
         rentAmount: contract.rentAmount,
         terms: contract.terms || "",
-      } : {
+      } : { // Reset for new contract
         propertyId: "",
-        tenantId: "",
-        tenantName: "",
+        tenantEmail: "", // Reset tenantEmail
+        tenantName: "", // Reset tenantName
         startDate: undefined,
         endDate: undefined,
         rentAmount: undefined,
@@ -97,29 +107,17 @@ export function ContractFormDialog({ contract, open, onOpenChange, onSave, avail
       });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contract, open, form.reset]);
+  }, [contract, open]); // form.reset removed from dependencies to avoid loop with watch
 
 
   async function onSubmit(values: ContractFormValues) {
     if (!currentUser || currentUser.role !== "Arrendador") {
-      toast({ title: "Error de Permiso", description: "No tienes permiso para crear contratos.", variant: "destructive" });
+      toast({ title: "Error de Permiso", description: "No tienes permiso para esta acción.", variant: "destructive" });
       return;
     }
-    const selectedProperty = availableProperties.find(p => p.id === values.propertyId);
-
-    const contractDataToSave: Contract = {
-      id: isEditing ? contract.id : new Date().toISOString(), // Generate ID
-      landlordId: currentUser.uid,
-      landlordName: currentUser.displayName,
-      propertyName: selectedProperty?.address, // Denormalized property name
-      status: isEditing ? contract.status : "Pendiente", // New contracts are Pending
-      createdAt: isEditing ? contract.createdAt : new Date().toISOString(),
-      ...values,
-      startDate: values.startDate.toISOString(),
-      endDate: values.endDate.toISOString(),
-    };
-    onSave(contractDataToSave, isEditing);
-    onOpenChange(false);
+    // The actual Contract object (with tenantId, landlordId etc.) will be created in contratos/page.tsx
+    onSave(values, isEditing, isEditing ? contract.id : undefined);
+    // onOpenChange(false); // This will be called in parent component after successful save
   }
 
   return (
@@ -139,15 +137,31 @@ export function ContractFormDialog({ contract, open, onOpenChange, onSave, avail
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Propiedad</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select 
+                    onValueChange={(value) => {
+                      field.onChange(value);
+                      // If not editing, try to prefill tenantEmail from property
+                      if (!isEditing) {
+                         const selectedProp = availableProperties.find(p => p.id === value);
+                         if (selectedProp?.potentialTenantEmail) {
+                           form.setValue("tenantEmail", selectedProp.potentialTenantEmail, { shouldValidate: true });
+                         } else {
+                           form.setValue("tenantEmail", "", { shouldValidate: true }); // Clear if property has no email
+                         }
+                      }
+                    }} 
+                    defaultValue={field.value}
+                  >
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Selecciona una propiedad" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {availableProperties.filter(p => p.status === "Disponible" || (isEditing && p.id === contract?.propertyId)).map(prop => (
-                        <SelectItem key={prop.id} value={prop.id}>{prop.address}</SelectItem>
+                      {availableProperties
+                        .filter(p => p.status === "Disponible" || (isEditing && p.id === contract?.propertyId))
+                        .map(prop => (
+                          <SelectItem key={prop.id} value={prop.id}>{prop.address}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -155,25 +169,31 @@ export function ContractFormDialog({ contract, open, onOpenChange, onSave, avail
                 </FormItem>
               )}
             />
-            <FormField /* In a real app, this could be a search/select for registered tenants */
+            <FormField
               control={form.control}
-              name="tenantName" 
+              name="tenantEmail" 
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nombre del Inquilino</FormLabel>
-                  <FormControl><Input placeholder="Ej: Homero Simpson" {...field} /></FormControl>
+                  <FormLabel>Correo Electrónico del Inquilino</FormLabel>
+                  <FormControl>
+                    <div className="relative">
+                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                       <Input type="email" placeholder="inquilino@ejemplo.com" className="pl-9" {...field} />
+                    </div>
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
              <FormField
               control={form.control}
-              name="tenantId"
+              name="tenantName"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>ID del Inquilino (Referencia)</FormLabel>
-                  <FormControl><Input placeholder="Ej: tenant123abc" {...field} /></FormControl>
-                   <FormMessage />
+                  <FormLabel>Nombre del Inquilino (Referencia)</FormLabel>
+                  <FormControl><Input placeholder="Ej: Homero Simpson" {...field} /></FormControl>
+                  <FormDescription>Este nombre se usará si no se encuentra un perfil con el correo.</FormDescription>
+                  <FormMessage />
                 </FormItem>
               )}
             />
