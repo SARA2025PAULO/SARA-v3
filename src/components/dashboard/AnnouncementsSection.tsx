@@ -25,6 +25,35 @@ interface AnnouncementsSectionProps {
   // Props can be added if needed, e.g. for specific styling or limits
 }
 
+// Helper to safely convert Firestore Timestamp or ISO string to Date object
+const safeGetDate = (firestoreTimestampOrISOString: any, fallbackDate: Date): Date => {
+  if (!firestoreTimestampOrISOString) {
+    return fallbackDate;
+  }
+  // Check if it's a Firestore Timestamp
+  if (firestoreTimestampOrISOString.toDate && typeof firestoreTimestampOrISOString.toDate === 'function') {
+    return firestoreTimestampOrISOString.toDate();
+  }
+  // Check if it's an ISO string
+  if (typeof firestoreTimestampOrISOString === 'string') {
+    try {
+      const parsedDate = parseISO(firestoreTimestampOrISOString);
+      if (!isNaN(parsedDate.getTime())) { // Check if date is valid
+        return parsedDate;
+      }
+    } catch (e) {
+      console.warn("Failed to parse date string for announcement:", firestoreTimestampOrISOString, e);
+    }
+  }
+  // If it's already a JS Date object
+  if (firestoreTimestampOrISOString instanceof Date && !isNaN(firestoreTimestampOrISOString.getTime())) {
+      return firestoreTimestampOrISOString;
+  }
+  console.warn("Unparseable date encountered for announcement, using fallback:", firestoreTimestampOrISOString);
+  return fallbackDate;
+};
+
+
 export function AnnouncementsSection({}: AnnouncementsSectionProps) {
   const { currentUser } = useAuth();
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
@@ -45,14 +74,14 @@ export function AnnouncementsSection({}: AnnouncementsSectionProps) {
         const evalsQuery = query(collection(db, "evaluations"), where("tenantId", "==", currentUser.uid), where("status", "==", "pendiente de confirmacion"));
         const evalsSnapshot = await getDocs(evalsQuery);
         evalsSnapshot.forEach(doc => {
-          const evalData = doc.data() as Evaluation;
+          const evalData = doc.data();
           newAnnouncements.push({
             id: `eval-${doc.id}`,
             message: "Has recibido una nueva evaluación. Revísala y deja tu comentario.",
             link: "/evaluaciones",
             icon: AlertTriangle,
             type: "warning",
-            date: evalData.evaluationDate ? parseISO(evalData.evaluationDate) : now,
+            date: safeGetDate(evalData.evaluationDate, now),
           });
         });
 
@@ -60,14 +89,14 @@ export function AnnouncementsSection({}: AnnouncementsSectionProps) {
         const incidentsQuery = query(collection(db, "incidents"), where("tenantId", "==", currentUser.uid), where("status", "==", "pendiente"), where("createdBy", "!=", currentUser.uid));
         const incidentsSnapshot = await getDocs(incidentsQuery);
         incidentsSnapshot.forEach(doc => {
-          const incidentData = doc.data() as Incident;
+          const incidentData = doc.data();
           newAnnouncements.push({
             id: `incident-resp-${doc.id}`,
             message: "Tienes un incidente pendiente de respuesta.",
             link: "/incidentes",
             icon: MessageSquareWarning,
             type: "warning",
-            date: incidentData.createdAt ? parseISO(incidentData.createdAt) : now,
+            date: safeGetDate(incidentData.createdAt, now),
           });
         });
 
@@ -75,22 +104,22 @@ export function AnnouncementsSection({}: AnnouncementsSectionProps) {
         const pendingContractsQuery = query(collection(db, "contracts"), where("tenantId", "==", currentUser.uid), where("status", "==", "Pendiente"));
         const pendingContractsSnapshot = await getDocs(pendingContractsQuery);
         pendingContractsSnapshot.forEach(doc => {
-          const contractData = doc.data() as Contract;
+          const contractData = doc.data();
           newAnnouncements.push({
             id: `contract-sign-${doc.id}`,
             message: `Tienes un contrato para la propiedad "${contractData.propertyName}" pendiente de aprobación.`,
             link: "/contratos",
             icon: FileSignature,
             type: "info",
-            date: contractData.createdAt ? parseISO(contractData.createdAt) : now,
+            date: safeGetDate(contractData.createdAt, now),
           });
         });
         
-        // 4. Aviso de pago próximo (simplified)
+        // 4. Aviso de pago próximo
         const activeContractsQuery = query(collection(db, "contracts"), where("tenantId", "==", currentUser.uid), where("status", "==", "Activo"));
         const activeContractsSnapshot = await getDocs(activeContractsQuery);
-        activeContractsSnapshot.forEach(doc => {
-            const contract = doc.data() as Contract;
+        activeContractsSnapshot.forEach(docSnap => { // Changed doc to docSnap to avoid conflict
+            const contract = docSnap.data() as Contract; // Keep type assertion for other fields
             if (contract.paymentDay) {
                 let paymentDateThisMonth = setDate(now, contract.paymentDay);
                 if (isBefore(paymentDateThisMonth, now) && !isSameDay(paymentDateThisMonth, now)) {
@@ -99,12 +128,12 @@ export function AnnouncementsSection({}: AnnouncementsSectionProps) {
                 const daysUntilPayment = differenceInDays(paymentDateThisMonth, now);
                 if (daysUntilPayment >= 0 && daysUntilPayment <= 7) {
                     newAnnouncements.push({
-                        id: `payment-due-${doc.id}`,
+                        id: `payment-due-${docSnap.id}`,
                         message: `Recuerda: el pago del arriendo de "${contract.propertyName}" vence en ${daysUntilPayment === 0 ? 'hoy' : `${daysUntilPayment} día(s)`}.`,
                         link: "/pagos",
                         icon: CalendarClock,
                         type: "info",
-                        date: paymentDateThisMonth,
+                        date: paymentDateThisMonth, // This is already a JS Date
                     });
                 }
             }
@@ -117,18 +146,18 @@ export function AnnouncementsSection({}: AnnouncementsSectionProps) {
           collection(db, "incidents"), 
           where("landlordId", "==", currentUser.uid), 
           where("status", "==", "respondido"),
-          where("createdBy", "==", currentUser.uid) // Landlord created, tenant responded
+          where("createdBy", "==", currentUser.uid) 
         );
         const respondedIncidentsSnapshot = await getDocs(respondedIncidentsQuery);
         respondedIncidentsSnapshot.forEach(doc => {
-          const incidentData = doc.data() as Incident;
+          const incidentData = doc.data();
           newAnnouncements.push({
             id: `incident-landlord-resp-${doc.id}`,
             message: `El inquilino ${incidentData.tenantName || 'N/A'} ha respondido al incidente sobre "${incidentData.propertyName}".`,
             link: "/incidentes",
             icon: MessageSquareWarning,
             type: "info",
-            date: incidentData.respondedAt ? parseISO(incidentData.respondedAt) : now,
+            date: safeGetDate(incidentData.respondedAt, now),
           });
         });
 
@@ -136,14 +165,14 @@ export function AnnouncementsSection({}: AnnouncementsSectionProps) {
         const unconfirmedEvalsQuery = query(collection(db, "evaluations"), where("landlordId", "==", currentUser.uid), where("status", "==", "pendiente de confirmacion"));
         const unconfirmedEvalsSnapshot = await getDocs(unconfirmedEvalsQuery);
         unconfirmedEvalsSnapshot.forEach(doc => {
-          const evalData = doc.data() as Evaluation;
+          const evalData = doc.data();
           newAnnouncements.push({
             id: `eval-unconf-${doc.id}`,
             message: `El inquilino ${evalData.tenantName || 'N/A'} aún no ha confirmado la recepción de la evaluación para "${evalData.propertyName}".`,
             link: "/evaluaciones",
             icon: AlertTriangle,
             type: "info",
-            date: evalData.evaluationDate ? parseISO(evalData.evaluationDate) : now,
+            date: safeGetDate(evalData.evaluationDate, now),
           });
         });
 
@@ -151,25 +180,23 @@ export function AnnouncementsSection({}: AnnouncementsSectionProps) {
         const pendingTenantContractsQuery = query(collection(db, "contracts"), where("landlordId", "==", currentUser.uid), where("status", "==", "Pendiente"));
         const pendingTenantContractsSnapshot = await getDocs(pendingTenantContractsQuery);
         pendingTenantContractsSnapshot.forEach(doc => {
-          const contractData = doc.data() as Contract;
+          const contractData = doc.data();
           newAnnouncements.push({
             id: `contract-tenant-sign-${doc.id}`,
             message: `El contrato para "${contractData.propertyName}" con ${contractData.tenantName || contractData.tenantEmail} aún no ha sido aprobado por el inquilino.`,
             link: "/contratos",
             icon: FileSignature,
             type: "warning",
-            date: contractData.createdAt ? parseISO(contractData.createdAt) : now,
+            date: safeGetDate(contractData.createdAt, now),
           });
         });
       }
       
-      // Sort by date, most recent first
       newAnnouncements.sort((a, b) => b.date.getTime() - a.date.getTime());
       setAnnouncements(newAnnouncements);
 
     } catch (error) {
       console.error("Error fetching announcements:", error);
-      // Handle error appropriately, maybe set an error state
     } finally {
       setIsLoading(false);
     }
