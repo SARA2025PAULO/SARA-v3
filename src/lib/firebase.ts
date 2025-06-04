@@ -34,12 +34,12 @@ import { getFirestore, Firestore } from "firebase/firestore";
 //
 // =====================================================================================
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY", // 👈 REPLACE THIS with your Firebase project's API Key
-  authDomain: "YOUR_AUTH_DOMAIN", // 👈 REPLACE THIS with your Firebase project's Auth Domain
-  projectId: "YOUR_PROJECT_ID", // 👈 REPLACE THIS with your Firebase project's Project ID
-  storageBucket: "YOUR_STORAGE_BUCKET", // 👈 REPLACE THIS with your Firebase project's Storage Bucket
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID", // 👈 REPLACE THIS with your Firebase project's Messaging Sender ID
-  appId: "YOUR_APP_ID", // 👈 REPLACE THIS with your Firebase project's App ID
+  apiKey: "AIzaSyDnS-HE3g4djBAinSGeHwCEupOTY56iouA",
+  authDomain: "sara3o.firebaseapp.com",
+  projectId: "sara3o",
+  storageBucket: "sara3o.firebasestorage.app", // Corrected from your input, typically it's projectId.appspot.com or projectId.firebasestorage.app
+  messagingSenderId: "59080776640",
+  appId: "1:59080776640:web:a430fc589f5fe211ef8625"
 };
 // =====================================================================================
 // END OF CRITICAL CONFIGURATION SECTION. ENSURE THE VALUES ABOVE ARE CORRECT.
@@ -54,13 +54,23 @@ if (typeof window !== 'undefined' && !getApps().length) {
   // IMPORTANT: If firebaseConfig above is not correctly filled with your
   // actual project details, the following line `initializeApp(firebaseConfig)`
   // will likely cause errors, such as the 'auth/api-key-not-valid' error you might be seeing.
-  app = initializeApp(firebaseConfig);
-  auth = getAuth(app);
-  db = getFirestore(app);
+  try {
+    app = initializeApp(firebaseConfig);
+    auth = getAuth(app);
+    db = getFirestore(app);
+  } catch (error) {
+    console.error("Firebase initialization error:", error);
+    // Potentially display a user-friendly message or fallback
+  }
 } else if (typeof window !== 'undefined') {
-  app = getApp();
-  auth = getAuth(app);
-  db = getFirestore(app);
+  try {
+    app = getApp();
+    auth = getAuth(app);
+    db = getFirestore(app);
+  } catch (error) {
+    console.error("Firebase getApp error:", error);
+     // This might happen if initializeApp failed previously or other issues.
+  }
 } else {
   // Handle server-side case if needed, though Firebase client SDK is primarily for client
   // For now, these will be undefined on server, which is fine if only used client-side
