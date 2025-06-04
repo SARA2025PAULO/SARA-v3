@@ -4,9 +4,10 @@
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Building2, FileText, PlusCircle, Bell } from "lucide-react";
+import { Building2, FileText, PlusCircle } from "lucide-react"; // Removed Bell
 import type { Property, Contract } from "@/types"; 
 import Image from "next/image";
+import { AnnouncementsSection } from "./AnnouncementsSection"; // Added import
 
 // Mock data - replace with actual data fetching
 const mockProperties: Property[] = [
@@ -93,32 +94,7 @@ export function LandlordDashboard() {
           </CardContent>
         </Card>
         
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Bell className="mr-2 h-5 w-5 text-primary" /> Notificaciones Recientes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              <div className="flex items-start space-x-3 p-3 bg-muted/50 rounded-md">
-                <Image src="https://placehold.co/40x40.png" alt="Tenant Avatar" width={40} height={40} className="rounded-full" data-ai-hint="person avatar" />
-                <div>
-                  <p className="text-sm font-medium">Nuevo mensaje de Inquilino X</p>
-                  <p className="text-xs text-muted-foreground">Sobre propiedad "Calle Falsa 123"</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-3 p-3 bg-muted/50 rounded-md">
-                <FileText className="h-10 w-10 text-accent flex-shrink-0 mt-1" />
-                <div>
-                  <p className="text-sm font-medium">Contrato para "Av. Siempre Viva" finaliza pronto.</p>
-                  <p className="text-xs text-muted-foreground">Vence en 15 días.</p>
-                </div>
-              </div>
-               <p className="text-sm text-muted-foreground text-center pt-2">No hay más notificaciones.</p>
-            </div>
-          </CardContent>
-        </Card>
+        <AnnouncementsSection />
       </div>
     </div>
   );

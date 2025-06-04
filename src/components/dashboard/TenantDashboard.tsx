@@ -4,10 +4,11 @@
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Home, MessageSquare, Wallet, ShieldCheck, Receipt, CalendarDays, Award } from "lucide-react"; // Added Award
+import { FileText, Home, MessageSquare, Wallet, ShieldCheck, Receipt, CalendarDays, Award } from "lucide-react"; 
 import type { Contract, Property } from "@/types";
 import Image from "next/image";
 import { Badge } from "@/components/ui/badge"; 
+import { AnnouncementsSection } from "./AnnouncementsSection"; // Added import
 
 // Mock data - replace with actual data fetching
 const mockTenantContracts: Contract[] = [
@@ -112,17 +113,7 @@ export function TenantDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Anuncios Importantes</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-center text-muted-foreground py-6">
-                <MessageSquare className="mx-auto h-10 w-10 mb-3" />
-                <p>No hay anuncios importantes por ahora.</p>
-            </div>
-          </CardContent>
-        </Card>
+        <AnnouncementsSection />
       </div>
     </div>
   );
