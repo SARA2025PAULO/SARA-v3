@@ -4,10 +4,10 @@
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Building2, FileText, PlusCircle } from "lucide-react"; // Removed Bell
+import { Building2, FileText, PlusCircle, Gavel } from "lucide-react"; 
 import type { Property, Contract } from "@/types"; 
 import Image from "next/image";
-import { AnnouncementsSection } from "./AnnouncementsSection"; // Added import
+import { AnnouncementsSection } from "./AnnouncementsSection"; 
 
 // Mock data - replace with actual data fetching
 const mockProperties: Property[] = [
@@ -89,6 +89,11 @@ export function LandlordDashboard() {
              <Button asChild className="w-full justify-start" size="lg">
               <Link href="/contratos#nuevo"> {/* This might need to trigger the dialog instead of hash */}
                 <PlusCircle className="mr-2 h-5 w-5" /> Crear Nuevo Contrato
+              </Link>
+            </Button>
+            <Button asChild className="w-full justify-start" size="lg" variant="outline">
+              <Link href="/dashboard/recuperacion-legal">
+                <Gavel className="mr-2 h-5 w-5" /> Recuperación Legal de Propiedad
               </Link>
             </Button>
           </CardContent>
