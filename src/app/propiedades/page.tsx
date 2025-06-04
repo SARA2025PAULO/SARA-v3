@@ -82,7 +82,7 @@ export default function PropiedadesPage() {
   }, [currentUser, toast]);
   
   const handleSaveProperty = async (
-    values: PropertyFormValues,
+    values: PropertyFormValues, // These are the cleanedValues from PropertyFormDialog
     isEditing: boolean,
     originalPropertyId?: string
   ) => {
@@ -94,30 +94,34 @@ export default function PropiedadesPage() {
     setIsLoading(true); 
 
     try {
-      const propertyData = {
-        ...values,
+      // Construct the base data object. `values` already contains cleaned data from the form dialog.
+      // Numeric fields that were empty strings are `undefined`.
+      // String fields (like imageUrl) that were empty strings are `""`.
+      // potentialTenantEmail is `undefined` if it was an empty string due to dialog cleaning.
+      const dataForFirestoreBase = {
+        ...values, 
         ownerId: currentUser.uid,
-        // Ensure optional fields that might be empty strings are converted to undefined
-        price: values.price || undefined,
-        bedrooms: values.bedrooms || undefined,
-        bathrooms: values.bathrooms || undefined,
-        area: values.area || undefined,
-        imageUrl: values.imageUrl || undefined,
-        potentialTenantEmail: values.potentialTenantEmail || undefined,
       };
 
+      // Remove any top-level properties that are explicitly undefined.
+      // Firestore does not accept 'undefined' as a field value.
+      // Empty strings ("") and null are acceptable, as are numbers like 0.
+      const cleanedDataForFirestore = Object.fromEntries(
+        Object.entries(dataForFirestoreBase).filter(([_, v]) => v !== undefined)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ) as any; // Cast to any or a more specific type if needed for Firestore SDK
 
       if (isEditing && originalPropertyId) {
         const propertyDocRef = doc(db, "users", currentUser.uid, "properties", originalPropertyId);
         const updatedPropertyData = {
-          ...propertyData,
+          ...cleanedDataForFirestore,
           updatedAt: serverTimestamp(),
         };
         await setDoc(propertyDocRef, updatedPropertyData, { merge: true });
 
         setProperties(prev => prev.map(p => 
           p.id === originalPropertyId 
-            ? { ...p, ...updatedPropertyData, updatedAt: new Date().toISOString() } 
+            ? { ...p, ...updatedPropertyData, id: originalPropertyId, updatedAt: new Date().toISOString() } 
             : p
         ));
         toast({ title: "Propiedad Actualizada", description: `Los detalles de "${values.address}" se han guardado.` });
@@ -125,15 +129,25 @@ export default function PropiedadesPage() {
       } else { 
         const propertiesCollectionRef = collection(db, "users", currentUser.uid, "properties");
         const newPropertyData = {
-          ...propertyData,
+          ...cleanedDataForFirestore,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         };
         const newDocRef = await addDoc(propertiesCollectionRef, newPropertyData);
         
+        // Ensure all fields required by Property type are present for the state update
         const newPropertyForState: Property = {
-            ...newPropertyData,
             id: newDocRef.id,
+            address: newPropertyData.address,
+            status: newPropertyData.status as Property["status"],
+            description: newPropertyData.description,
+            ownerId: newPropertyData.ownerId,
+            imageUrl: newPropertyData.imageUrl, // Will be "" if it was ""
+            price: newPropertyData.price, // Will be number or undefined (but filtered out if undefined by cleanedDataForFirestore)
+            bedrooms: newPropertyData.bedrooms,
+            bathrooms: newPropertyData.bathrooms,
+            area: newPropertyData.area,
+            potentialTenantEmail: newPropertyData.potentialTenantEmail,
             createdAt: new Date().toISOString(), 
             updatedAt: new Date().toISOString(),
         };
@@ -161,8 +175,6 @@ export default function PropiedadesPage() {
   };
 
   const handleViewDetails = (property: Property) => {
-    // For now, just a toast. In future, could navigate to a property detail page
-    // or open a more detailed modal.
     toast({ 
       title: property.address, 
       description: `Estado: ${property.status}. ${property.potentialTenantEmail ? `Potencial inquilino: ${property.potentialTenantEmail}` : ''} (Funcionalidad de vista detallada pendiente).`
@@ -236,7 +248,7 @@ export default function PropiedadesPage() {
                         <Badge variant="secondary" className={`w-fit text-xs mb-2 ${property.status === "Disponible" ? "bg-accent text-accent-foreground" : property.status === "Arrendada" ? "bg-blue-200 text-blue-800" : "bg-yellow-200 text-yellow-800"}`}>
                             {property.status}
                         </Badge>
-                        <CardDescription className="text-sm text-muted-foreground mb-1 flex-grow">{property.description.substring(0,100)}{property.description.length > 100 && '...'}</CardDescription>
+                        <CardDescription className="text-sm text-muted-foreground mb-1 flex-grow">{property.description ? property.description.substring(0,100) + (property.description.length > 100 ? '...' : '') : ''}</CardDescription>
                         {property.potentialTenantEmail && <p className="text-xs text-primary/80 mb-2">Potencial Inquilino: {property.potentialTenantEmail}</p>}
                          <div className="text-sm text-primary font-medium mb-2">${property.price?.toLocaleString('es-CL') || 'N/A'}/mes</div>
                         <div className="flex justify-end space-x-2 mt-auto">
@@ -259,3 +271,5 @@ export default function PropiedadesPage() {
     </div>
   );
 }
+
+    
