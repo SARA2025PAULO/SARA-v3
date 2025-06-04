@@ -200,12 +200,12 @@ export function TenantCertificateDisplay() {
     const halfStar = score % 1 >= 0.5 ? 1 : 0; // Simplified: no half stars, just round
     const emptyStars = maxStars - fullStars - halfStar;
     return (
-      <div className="flex items-center">
+      <span className="flex items-center">
         {Array(fullStars).fill(0).map((_, i) => <Star key={`full-${i}`} className="h-5 w-5 fill-yellow-400 text-yellow-400" />)}
         {/* Add half star logic if desired */}
         {Array(emptyStars).fill(0).map((_, i) => <Star key={`empty-${i}`} className="h-5 w-5 text-gray-300" />)}
         <span className="ml-2 text-sm font-medium">({score.toFixed(1)}/{maxStars})</span>
-      </div>
+      </span>
     );
   };
   
