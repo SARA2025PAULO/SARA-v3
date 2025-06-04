@@ -223,7 +223,7 @@ export function TenantCertificateDisplay() {
           <h1 className="text-3xl font-bold text-primary font-headline">Certificado de Comportamiento</h1>
           <p className="text-lg text-muted-foreground">S.A.R.A - Sistema de Administración Responsable de Arriendos</p>
         </div>
-        <Image src="https://placehold.co/120x120.png?text=SARA+Logo" alt="S.A.R.A Logo" width={100} height={100} className="mt-4 sm:mt-0" data-ai-hint="company logo building key" />
+        <Image src="/sara_logo.png" alt="S.A.R.A Logo" width={100} height={100} className="mt-4 sm:mt-0" data-ai-hint="company logo" />
       </header>
 
       {/* Certificate Details */}

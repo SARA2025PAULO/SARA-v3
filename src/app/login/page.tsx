@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useEffect } from 'react';
@@ -31,7 +32,7 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/10 via-background to-background p-4">
       <div className="w-full max-w-4xl grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
         <div className="hidden md:flex flex-col items-center justify-center p-8 space-y-6 text-center">
-            <Image src="https://placehold.co/300x300.png" alt="S.A.R.A Illustration" width={250} height={250} className="rounded-full shadow-lg" data-ai-hint="modern building key" />
+            <Image src="/sara_logo.png" alt="S.A.R.A Illustration" width={250} height={250} className="rounded-full shadow-lg" data-ai-hint="company logo" />
             <h1 className="text-4xl font-bold text-primary font-headline">Bienvenido a S.A.R.A</h1>
             <p className="text-muted-foreground text-lg">
               Tu <span className="font-semibold text-primary/90">S</span>istema de <span className="font-semibold text-primary/90">A</span>dministración <span className="font-semibold text-primary/90">R</span>esponsable de <span className="font-semibold text-primary/90">A</span>rriendos.
@@ -62,3 +63,4 @@ export default function LoginPage() {
     </div>
   );
 }
+
