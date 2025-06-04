@@ -1,3 +1,4 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -241,9 +242,9 @@ export function ContractFormDialog({ contract, open, onOpenChange, onSave, avail
               name="rentAmount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Monto del Arriendo (USD/mes)</FormLabel>
+                  <FormLabel>Monto del Arriendo (CLP/mes)</FormLabel>
                   <FormControl>
-                    <Input type="number" placeholder="Ej: 850" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} />
+                    <Input type="number" placeholder="Ej: 350000" {...field} onChange={e => field.onChange(parseFloat(e.target.value))} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

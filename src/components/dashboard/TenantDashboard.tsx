@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -9,10 +10,10 @@ import Image from "next/image";
 
 // Mock data - replace with actual data fetching
 const mockTenantContracts: Contract[] = [
-  { id: "c1", propertyId: "p1", propertyName: "Av. Siempre Viva 742", landlordId: "landlord1", landlordName: "Ned Flanders", tenantId: "tenant123", startDate: "2023-08-01", endDate: "2024-07-31", rentAmount: 1200, status: "Activo", createdAt: "2023-07-15" },
+  { id: "c1", propertyId: "p1", propertyName: "Av. Siempre Viva 742", landlordId: "landlord1", landlordName: "Ned Flanders", tenantId: "tenant123", startDate: "2023-08-01", endDate: "2024-07-31", rentAmount: 750000, status: "Activo", createdAt: "2023-07-15" },
 ];
 const mockPropertyDetails: Property | null = mockTenantContracts.length > 0 ? {
-    id: "p1", address: "Av. Siempre Viva 742", status: "Arrendada", description: "Acogedora casa familiar con amplio jardín y garage para dos autos.", ownerId: "landlord1", imageUrl: "https://placehold.co/600x400.png", price: 1200, bedrooms: 3, bathrooms: 2, area: 150
+    id: "p1", address: "Av. Siempre Viva 742", status: "Arrendada", description: "Acogedora casa familiar con amplio jardín y garage para dos autos.", ownerId: "landlord1", imageUrl: "https://placehold.co/600x400.png", price: 750000, bedrooms: 3, bathrooms: 2, area: 150
 } : null;
 
 
@@ -41,7 +42,7 @@ export function TenantDashboard() {
                 <div className="space-y-3">
                   <p><span className="font-semibold">Estado del Contrato:</span> <span className={`px-2 py-1 text-xs rounded-full ${currentContract.status === "Activo" ? "bg-accent/20 text-accent-foreground" : "bg-yellow-100 text-yellow-800"}`}>{currentContract.status}</span></p>
                   <p><span className="font-semibold">Propietario:</span> {currentContract.landlordName || "N/A"}</p>
-                  <p><span className="font-semibold">Renta Mensual:</span> ${currentContract.rentAmount.toLocaleString()}</p>
+                  <p><span className="font-semibold">Renta Mensual:</span> ${currentContract.rentAmount.toLocaleString('es-CL')}</p>
                   <p><span className="font-semibold">Inicio de Contrato:</span> {new Date(currentContract.startDate).toLocaleDateString()}</p>
                   <p><span className="font-semibold">Fin de Contrato:</span> {new Date(currentContract.endDate).toLocaleDateString()}</p>
                   <Button asChild className="w-full mt-4">

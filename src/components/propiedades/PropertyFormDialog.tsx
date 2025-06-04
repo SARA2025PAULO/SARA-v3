@@ -182,9 +182,9 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
                 name="price"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Precio (USD/mes)</FormLabel>
+                    <FormLabel>Precio (CLP/mes)</FormLabel>
                     <FormControl>
-                      <Input type="number" placeholder="Ej: 1200" {...field} 
+                      <Input type="number" placeholder="Ej: 350000" {...field} 
                        onChange={e => field.onChange(e.target.value === '' ? '' : parseFloat(e.target.value))}
                        value={field.value ?? ''} 
                       />

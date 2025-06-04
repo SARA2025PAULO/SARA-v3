@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -60,7 +61,7 @@ export function ContractCard({ contract, userRole, onViewDetails, onApprove, onR
         </div>
         <div className="flex items-center">
           <FileText className="h-4 w-4 mr-2 text-primary" />
-          <span>Monto: ${contract.rentAmount.toLocaleString()}/mes</span>
+          <span>Monto: ${contract.rentAmount.toLocaleString('es-CL')}/mes</span>
         </div>
       </CardContent>
       <CardFooter className="flex justify-end space-x-2 bg-muted/30 p-4">

@@ -1,3 +1,4 @@
+
 "use client";
 
 import {
@@ -49,7 +50,7 @@ export function ContractApprovalDialog({ contract, open, onOpenChange, onApprove
         <div className="space-y-3 py-4 text-sm">
           <p className="flex items-center"><FileText className="h-4 w-4 mr-2 text-primary" /> <strong>Propiedad:</strong> {contract.propertyName || contract.propertyId}</p>
           <p className="flex items-center"><CalendarDays className="h-4 w-4 mr-2 text-primary" /> <strong>Periodo:</strong> {formatDate(contract.startDate)} - {formatDate(contract.endDate)}</p>
-          <p className="flex items-center"><DollarSign className="h-4 w-4 mr-2 text-primary" /> <strong>Monto Mensual:</strong> ${contract.rentAmount.toLocaleString()}</p>
+          <p className="flex items-center"><DollarSign className="h-4 w-4 mr-2 text-primary" /> <strong>Monto Mensual:</strong> ${contract.rentAmount.toLocaleString('es-CL')}</p>
           {contract.landlordName && <p className="flex items-center"><strong>Arrendador:</strong> {contract.landlordName}</p>}
           {contract.terms && (
             <div>

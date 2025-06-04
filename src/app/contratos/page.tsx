@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -15,15 +16,15 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // Mock Data - replace with actual data fetching
 const initialContracts: Contract[] = [
-  { id: "c1", propertyId: "p1", propertyName: "Avenida Rivadavia 1234", tenantId: "tenant001", tenantName: "Lisa Simpson", landlordId: "landlord123", landlordName: "Ned Flanders", startDate: "2024-01-15", endDate: "2025-01-14", rentAmount: 750, status: "Activo", createdAt: "2024-01-10" },
-  { id: "c2", propertyId: "p2", propertyName: "Calle Falsa 123", tenantId: "tenant002", tenantName: "Bart Simpson", landlordId: "landlord123", landlordName: "Ned Flanders", startDate: "2024-03-01", endDate: "2025-02-28", rentAmount: 1200, status: "Pendiente", createdAt: "2024-02-20" },
-  { id: "c3", propertyId: "p3", propertyName: "Loft Ciudad Gótica", tenantId: "tenant001", tenantName: "Lisa Simpson", landlordId: "anotherLord", landlordName: "Selina Kyle", startDate: "2023-11-01", endDate: "2024-10-31", rentAmount: 900, status: "Finalizado", createdAt: "2023-10-25" },
+  { id: "c1", propertyId: "p1", propertyName: "Avenida Rivadavia 1234", tenantId: "tenant001", tenantName: "Lisa Simpson", landlordId: "landlord123", landlordName: "Ned Flanders", startDate: "2024-01-15", endDate: "2025-01-14", rentAmount: 350000, status: "Activo", createdAt: "2024-01-10" },
+  { id: "c2", propertyId: "p2", propertyName: "Calle Falsa 123", tenantId: "tenant002", tenantName: "Bart Simpson", landlordId: "landlord123", landlordName: "Ned Flanders", startDate: "2024-03-01", endDate: "2025-02-28", rentAmount: 480000, status: "Pendiente", createdAt: "2024-02-20" },
+  { id: "c3", propertyId: "p3", propertyName: "Loft Ciudad Gótica", tenantId: "tenant001", tenantName: "Lisa Simpson", landlordId: "anotherLord", landlordName: "Selina Kyle", startDate: "2023-11-01", endDate: "2024-10-31", rentAmount: 400000, status: "Finalizado", createdAt: "2023-10-25" },
 ];
 
 const mockProperties: Property[] = [ // For landlord to select when creating contract
   { id: "p1", address: "Avenida Rivadavia 1234, Buenos Aires", status: "Arrendada", description: "...", ownerId: "landlord123" },
-  { id: "p4", address: "Avenida Corrientes 5678, Buenos Aires", status: "Disponible", description: "Moderno monoambiente céntrico.", ownerId: "landlord123", price: 500 },
-  { id: "p5", address: "Calle Defensa 910, San Telmo", status: "Disponible", description: "PH antiguo reciclado con patio.", ownerId: "landlord123", price: 650 },
+  { id: "p4", address: "Avenida Corrientes 5678, Buenos Aires", status: "Disponible", description: "Moderno monoambiente céntrico.", ownerId: "landlord123", price: 250000 },
+  { id: "p5", address: "Calle Defensa 910, San Telmo", status: "Disponible", description: "PH antiguo reciclado con patio.", ownerId: "landlord123", price: 320000 },
 ];
 
 

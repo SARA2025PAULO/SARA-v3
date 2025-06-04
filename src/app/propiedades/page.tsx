@@ -228,7 +228,7 @@ export default function PropiedadesPage() {
                             {property.status}
                         </Badge>
                         <CardDescription className="text-sm text-muted-foreground mb-2 flex-grow">{property.description.substring(0,100)}{property.description.length > 100 && '...'}</CardDescription>
-                         <div className="text-sm text-primary font-medium mb-2">${property.price?.toLocaleString() || 'N/A'}/mes</div>
+                         <div className="text-sm text-primary font-medium mb-2">${property.price?.toLocaleString('es-CL') || 'N/A'}/mes</div>
                         <div className="flex justify-end space-x-2 mt-auto">
                             <Button variant="outline" size="sm" onClick={() => handleEditProperty(property)}><Edit3 className="h-4 w-4 mr-1" /> Editar</Button>
                             <Button variant="default" size="sm" onClick={() => onViewDetails(property)}><Eye className="h-4 w-4 mr-1" /> Detalles</Button>

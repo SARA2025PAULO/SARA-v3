@@ -1,3 +1,4 @@
+
 "use client";
 
 import Link from "next/link";
@@ -9,12 +10,12 @@ import Image from "next/image";
 
 // Mock data - replace with actual data fetching
 const mockProperties: Property[] = [
-  { id: "1", address: "Av. Siempre Viva 742", status: "Arrendada", description: "Casa familiar", ownerId: "landlord1", price: 1200, imageUrl: "https://placehold.co/600x400.png" },
-  { id: "2", address: "Calle Falsa 123", status: "Disponible", description: "Apartamento moderno", ownerId: "landlord1", price: 850, imageUrl: "https://placehold.co/600x400.png" },
+  { id: "1", address: "Av. Siempre Viva 742", status: "Arrendada", description: "Casa familiar", ownerId: "landlord1", price: 750000, imageUrl: "https://placehold.co/600x400.png" },
+  { id: "2", address: "Calle Falsa 123", status: "Disponible", description: "Apartamento moderno", ownerId: "landlord1", price: 450000, imageUrl: "https://placehold.co/600x400.png" },
 ];
 
 const mockContracts: Contract[] = [
-  { id: "c1", propertyId: "1", tenantId: "tenant1", landlordId: "landlord1", startDate: "2023-01-01", endDate: "2023-12-31", rentAmount: 1200, status: "Activo", propertyName: "Av. Siempre Viva 742", createdAt: "2023-01-01" },
+  { id: "c1", propertyId: "1", tenantId: "tenant1", landlordId: "landlord1", startDate: "2023-01-01", endDate: "2023-12-31", rentAmount: 750000, status: "Activo", propertyName: "Av. Siempre Viva 742", createdAt: "2023-01-01" },
 ];
 
 export function LandlordDashboard() {

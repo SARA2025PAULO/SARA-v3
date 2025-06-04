@@ -1,3 +1,4 @@
+
 "use client";
 
 import Image from "next/image";
@@ -51,7 +52,7 @@ export function PropertyCard({ property, onEdit, onViewDetails }: PropertyCardPr
           {property.price && (
             <div className="flex items-center">
               <DollarSign className="h-4 w-4 mr-2 text-primary" />
-              <span>${property.price.toLocaleString()}/mes</span>
+              <span>${property.price.toLocaleString('es-CL')}/mes</span>
             </div>
           )}
           <div className="grid grid-cols-2 gap-x-2 gap-y-1 pt-1">
