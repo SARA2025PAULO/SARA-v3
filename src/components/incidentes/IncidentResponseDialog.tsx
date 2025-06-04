@@ -14,13 +14,13 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Paperclip, MessageSquare } from "lucide-react";
-import type { Incident } from "@/types";
+import type { Incident, UserRole } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
 const incidentResponseFormSchema = z.object({
-  tenantResponseText: z.string().min(10, { message: "Tu respuesta debe tener al menos 10 caracteres." }),
-  attachmentTenant: z.custom<FileList>((val) => val instanceof FileList, "Se esperaba un archivo").optional(),
+  responseText: z.string().min(10, { message: "Tu respuesta debe tener al menos 10 caracteres." }),
+  responseAttachment: z.custom<FileList>((val) => val instanceof FileList, "Se esperaba un archivo").optional(),
 });
 
 export type IncidentResponseFormValues = z.infer<typeof incidentResponseFormSchema>;
@@ -30,36 +30,40 @@ interface IncidentResponseDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (incidentId: string, data: IncidentResponseFormValues) => Promise<void>; 
+  currentUserRole: UserRole | null; // Added to understand context for display
 }
 
-export function IncidentResponseDialog({ incident, open, onOpenChange, onSave }: IncidentResponseDialogProps) {
-  const { currentUser } = useAuth();
+export function IncidentResponseDialog({ incident, open, onOpenChange, onSave, currentUserRole }: IncidentResponseDialogProps) {
   const { toast } = useToast();
 
   const form = useForm<IncidentResponseFormValues>({
     resolver: zodResolver(incidentResponseFormSchema),
     defaultValues: {
-      tenantResponseText: "",
-      attachmentTenant: undefined,
+      responseText: "",
+      responseAttachment: undefined,
     },
   });
 
   async function onSubmit(values: IncidentResponseFormValues) {
-    if (!currentUser || currentUser.role !== "Inquilino" || !incident) {
+    if (!currentUserRole || !incident) {
       toast({ title: "Error de Permiso", description: "Acción no permitida.", variant: "destructive" });
       return;
     }
     await onSave(incident.id, values);
-    form.reset({ tenantResponseText: "", attachmentTenant: undefined });
+    form.reset({ responseText: "", responseAttachment: undefined });
   }
 
   if (!incident) return null;
+
+  const creatorIsLandlord = incident.createdBy === incident.landlordId;
+  const creatorName = creatorIsLandlord ? (incident.landlordName || "Arrendador") : (incident.tenantName || "Inquilino");
+
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
       onOpenChange(isOpen);
       if (!isOpen) {
-        form.reset({ tenantResponseText: "", attachmentTenant: undefined });
+        form.reset({ responseText: "", responseAttachment: undefined });
       }
     }}>
       <DialogContent className="sm:max-w-lg">
@@ -72,17 +76,17 @@ export function IncidentResponseDialog({ incident, open, onOpenChange, onSave }:
           </DialogDescription>
         </DialogHeader>
         <div className="py-2 px-1 space-y-2 max-h-[30vh] overflow-y-auto border rounded-md bg-muted/50">
-            <p className="text-sm font-semibold">Descripción del Arrendador:</p>
+            <p className="text-sm font-semibold">Descripción Inicial (de {creatorName}):</p>
             <p className="text-sm whitespace-pre-wrap">{incident.description}</p>
-            {incident.attachmentUrlLandlord && (
-                <p className="text-sm flex items-center"><Paperclip className="h-4 w-4 mr-1"/> Adjunto Arrendador: {incident.attachmentUrlLandlord} (solo nombre)</p>
+            {incident.initialAttachmentUrl && (
+                <p className="text-sm flex items-center"><Paperclip className="h-4 w-4 mr-1"/> Adjunto del Creador: {incident.initialAttachmentUrl} (solo nombre)</p>
             )}
         </div>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1 pr-4">
             <FormField
               control={form.control}
-              name="tenantResponseText"
+              name="responseText"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Tu Respuesta/Comentario</FormLabel>
@@ -95,7 +99,7 @@ export function IncidentResponseDialog({ incident, open, onOpenChange, onSave }:
             />
             <FormField
               control={form.control}
-              name="attachmentTenant"
+              name="responseAttachment"
               render={({ field: { onChange, value, ...rest } }) => ( 
                 <FormItem>
                   <FormLabel className="flex items-center">

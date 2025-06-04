@@ -31,7 +31,7 @@ export default function IncidentesPage() {
   const { toast } = useToast();
   
   const [incidents, setIncidents] = useState<Incident[]>([]);
-  const [landlordActiveContracts, setLandlordActiveContracts] = useState<Contract[]>([]);
+  const [userActiveContracts, setUserActiveContracts] = useState<Contract[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false); // For forms
   const [isProcessingAction, setIsProcessingAction] = useState(false); // For card actions like close
@@ -43,20 +43,31 @@ export default function IncidentesPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"todos" | IncidentStatus>("todos");
 
-  const fetchLandlordActiveContracts = useCallback(async () => {
-    if (currentUser?.role === "Arrendador" && db) {
+  const fetchUserActiveContracts = useCallback(async () => {
+    if (currentUser && db) {
       try {
         const contractsRef = collection(db, "contracts");
-        const q = query(contractsRef, 
-          where("landlordId", "==", currentUser.uid),
-          where("status", "==", "Activo") 
-        );
+        let q;
+        if (currentUser.role === "Arrendador") {
+          q = query(contractsRef, 
+            where("landlordId", "==", currentUser.uid),
+            where("status", "==", "Activo") 
+          );
+        } else if (currentUser.role === "Inquilino") {
+           q = query(contractsRef, 
+            where("tenantId", "==", currentUser.uid),
+            where("status", "==", "Activo") 
+          );
+        } else {
+          setUserActiveContracts([]);
+          return;
+        }
         const contractsSnapshot = await getDocs(q);
         const fetchedContracts = contractsSnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Contract));
-        setLandlordActiveContracts(fetchedContracts);
+        setUserActiveContracts(fetchedContracts);
       } catch (error) {
-        console.error("Error fetching landlord's active contracts:", error);
-        toast({ title: "Error", description: "No se pudieron cargar tus contratos activos para crear incidentes.", variant: "destructive" });
+        console.error("Error fetching user's active contracts:", error);
+        toast({ title: "Error", description: "No se pudieron cargar tus contratos activos.", variant: "destructive" });
       }
     }
   }, [currentUser, toast]);
@@ -69,7 +80,7 @@ export default function IncidentesPage() {
     }
     setIsLoading(true);
     try {
-      const incidentsCollectionRef = collection(db, "incidents"); // Query top-level 'incidents' collection
+      const incidentsCollectionRef = collection(db, "incidents");
       let q;
       if (currentUser.role === "Arrendador") {
         q = query(incidentsCollectionRef, where("landlordId", "==", currentUser.uid), orderBy("createdAt", "desc"));
@@ -102,13 +113,11 @@ export default function IncidentesPage() {
 
   useEffect(() => {
     fetchIncidents();
-    if (currentUser?.role === "Arrendador") {
-      fetchLandlordActiveContracts();
-    }
-  }, [currentUser, fetchIncidents, fetchLandlordActiveContracts]);
+    fetchUserActiveContracts();
+  }, [currentUser, fetchIncidents, fetchUserActiveContracts]);
 
   const handleCreateIncident = async (values: IncidentFormValues) => {
-    if (!currentUser || currentUser.role !== "Arrendador" || !db) {
+    if (!currentUser || !db) {
       toast({ title: "Error de Permiso", description: "Acción no permitida.", variant: "destructive" });
       return;
     }
@@ -119,7 +128,7 @@ export default function IncidentesPage() {
     setIsSubmitting(true);
 
     try {
-      const selectedContract = landlordActiveContracts.find(c => c.id === values.contractId);
+      const selectedContract = userActiveContracts.find(c => c.id === values.contractId);
       if (!selectedContract) {
         toast({ title: "Error", description: "Contrato seleccionado no válido.", variant: "destructive" });
         setIsSubmitting(false);
@@ -127,26 +136,26 @@ export default function IncidentesPage() {
       }
 
       let attachmentUrlValue: string | undefined = undefined;
-      if (values.attachmentLandlord && values.attachmentLandlord.length > 0) {
-        const file = values.attachmentLandlord[0];
+      if (values.initialAttachment && values.initialAttachment.length > 0) {
+        const file = values.initialAttachment[0];
         // TODO: Implement Firebase Storage upload here
         attachmentUrlValue = file.name; // Placeholder
       }
 
-      const incidentData: Omit<Incident, 'id' | 'createdAt' | 'status' | 'respondedAt' | 'closedAt' | 'closedBy' | 'tenantResponseText' | 'attachmentUrlTenant'> & { createdAt: any, status: IncidentStatus } = {
+      const incidentData: Omit<Incident, 'id' | 'createdAt' | 'status' | 'respondedAt' | 'closedAt' | 'closedBy' | 'responseText' | 'responseAttachmentUrl' | 'respondedBy'> & { createdAt: any, status: IncidentStatus } = {
         contractId: selectedContract.id,
         propertyId: selectedContract.propertyId,
         propertyName: selectedContract.propertyName || "N/A",
-        landlordId: currentUser.uid,
-        landlordName: currentUser.displayName || "Arrendador",
+        landlordId: selectedContract.landlordId,
+        landlordName: selectedContract.landlordName || "Arrendador",
         tenantId: selectedContract.tenantId,
-        tenantName: selectedContract.tenantName || selectedContract.tenantEmail,
+        tenantName: selectedContract.tenantName || "Inquilino",
         type: values.type,
-        description: values.description,
+        description: values.description, // Initial description
         status: "pendiente",
         createdBy: currentUser.uid,
         createdAt: serverTimestamp(),
-        ...(attachmentUrlValue && { attachmentUrlLandlord: attachmentUrlValue }),
+        ...(attachmentUrlValue && { initialAttachmentUrl: attachmentUrlValue }),
       };
       
       await addDoc(collection(db, "incidents"), incidentData);
@@ -163,8 +172,8 @@ export default function IncidentesPage() {
   };
 
   const handleRespondToIncident = async (incidentId: string, values: IncidentResponseFormValues) => {
-    if (!currentUser || currentUser.role !== "Inquilino" || !db) {
-      toast({ title: "Error de Permiso", description: "Solo los inquilinos pueden responder.", variant: "destructive" });
+     if (!currentUser || !db || !incidentToRespond || currentUser.uid === incidentToRespond.createdBy || incidentToRespond.status !== 'pendiente') {
+      toast({ title: "Error de Permiso", description: "No puedes responder a este incidente.", variant: "destructive" });
       return;
     }
     setIsSubmitting(true);
@@ -172,17 +181,18 @@ export default function IncidentesPage() {
       const incidentDocRef = doc(db, "incidents", incidentId);
       
       let attachmentUrlValue: string | undefined = undefined;
-      if (values.attachmentTenant && values.attachmentTenant.length > 0) {
-        const file = values.attachmentTenant[0];
-        // TODO: Implement Firebase Storage upload here for tenant attachment
+      if (values.responseAttachment && values.responseAttachment.length > 0) {
+        const file = values.responseAttachment[0];
+        // TODO: Implement Firebase Storage upload here for response attachment
         attachmentUrlValue = file.name; // Placeholder
       }
 
       await updateDoc(incidentDocRef, {
-        tenantResponseText: values.tenantResponseText,
+        responseText: values.responseText,
         status: "respondido",
         respondedAt: serverTimestamp(),
-        ...(attachmentUrlValue && { attachmentUrlTenant: attachmentUrlValue }),
+        respondedBy: currentUser.uid,
+        ...(attachmentUrlValue && { responseAttachmentUrl: attachmentUrlValue }),
       });
       toast({ title: "Respuesta Enviada", description: "Tu respuesta al incidente ha sido enviada." });
       fetchIncidents();
@@ -197,8 +207,9 @@ export default function IncidentesPage() {
   };
 
   const handleCloseIncident = async (incidentId: string) => {
-    if (!currentUser || currentUser.role !== "Arrendador" || !db) {
-        toast({ title: "Error de Permiso", description: "Solo el arrendador puede cerrar incidentes.", variant: "destructive" });
+    const incidentToClose = incidents.find(inc => inc.id === incidentId);
+    if (!currentUser || !db || !incidentToClose || currentUser.uid !== incidentToClose.createdBy || incidentToClose.status !== 'respondido') {
+        toast({ title: "Error de Permiso", description: "Solo el creador puede cerrar un incidente respondido.", variant: "destructive" });
         return;
     }
     setIsProcessingAction(true);
@@ -228,7 +239,8 @@ export default function IncidentesPage() {
     setIsResponseFormOpen(true);
   };
 
-  if (isLoading && incidents.length === 0) return <div className="p-4">Cargando incidentes...</div>;
+  if (isLoading && incidents.length === 0 && userActiveContracts.length === 0) return <div className="p-4">Cargando...</div>;
+
 
   const incidentStatusOptions: (IncidentStatus | "todos")[] = ["todos", "pendiente", "respondido", "cerrado"];
   const userRole = currentUser?.role;
@@ -247,12 +259,12 @@ export default function IncidentesPage() {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
         <h1 className="text-3xl font-bold font-headline flex items-center"><ShieldAlert className="h-8 w-8 mr-2 text-primary"/> Gestión de Incidentes</h1>
-        {userRole === "Arrendador" && (
-          <Button onClick={() => setIsIncidentFormOpen(true)} size="lg" disabled={isSubmitting || landlordActiveContracts.length === 0}>
+        {currentUser && ( // Both roles can create incidents
+          <Button onClick={() => setIsIncidentFormOpen(true)} size="lg" disabled={isSubmitting || userActiveContracts.length === 0}>
             <PlusCircle className="mr-2 h-5 w-5" /> Crear Nuevo Incidente
           </Button>
         )}
-         {userRole === "Arrendador" && landlordActiveContracts.length === 0 && !isLoading && (
+         {userActiveContracts.length === 0 && !isLoading && (
             <p className="text-sm text-muted-foreground">Debes tener contratos activos para crear incidentes.</p>
         )}
       </div>
@@ -285,12 +297,9 @@ export default function IncidentesPage() {
           <h3 className="text-xl font-semibold">No se encontraron incidentes</h3>
           <p className="text-muted-foreground">
             {searchTerm || statusFilter !== "todos" ? "Intenta con otros filtros. " : ""}
-            {userRole === "Arrendador" && 
-              <Button variant="link" className="p-0 h-auto" onClick={() => setIsIncidentFormOpen(true)} disabled={landlordActiveContracts.length === 0}>
-                Crea un nuevo incidente
-              </Button>
-            }
-            {userRole === "Inquilino" && "No tienes incidentes asignados."}
+            <Button variant="link" className="p-0 h-auto" onClick={() => setIsIncidentFormOpen(true)} disabled={userActiveContracts.length === 0}>
+              Crea un nuevo incidente
+            </Button>
           </p>
         </div>
       ) : (
@@ -299,30 +308,32 @@ export default function IncidentesPage() {
             <IncidentCard
               key={incident.id}
               incident={incident}
-              userRole={userRole || null}
-              onRespond={userRole === "Inquilino" && incident.status === "pendiente" ? openResponseDialog : undefined}
-              onClose={userRole === "Arrendador" && incident.status === "respondido" ? handleCloseIncident : undefined}
+              currentUser={currentUser}
+              onRespond={incident.status === 'pendiente' && currentUser && incident.createdBy !== currentUser.uid ? openResponseDialog : undefined}
+              onClose={incident.status === 'respondido' && currentUser && incident.createdBy === currentUser.uid ? handleCloseIncident : undefined}
               isProcessing={isProcessingAction || isSubmitting}
             />
           ))}
         </div>
       )}
 
-      {userRole === "Arrendador" && (
+      {currentUser && (
         <IncidentFormDialog
           open={isIncidentFormOpen}
           onOpenChange={setIsIncidentFormOpen}
           onSave={handleCreateIncident}
-          landlordContracts={landlordActiveContracts}
+          userContracts={userActiveContracts}
+          currentUserRole={currentUser.role}
         />
       )}
 
-      {incidentToRespond && userRole === "Inquilino" && (
+      {incidentToRespond && currentUser && (
         <IncidentResponseDialog
           incident={incidentToRespond}
           open={isResponseFormOpen}
           onOpenChange={setIsResponseFormOpen}
           onSave={handleRespondToIncident}
+          currentUserRole={currentUser.role}
         />
       )}
     </div>

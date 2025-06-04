@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Paperclip, AlertTriangle } from "lucide-react";
-import type { Contract, IncidentType } from "@/types";
+import type { Contract, IncidentType, UserRole } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -25,7 +25,7 @@ const incidentFormSchema = z.object({
   contractId: z.string().min(1, { message: "Debes seleccionar un contrato." }),
   type: z.enum(incidentTypes, { required_error: "Debes seleccionar un tipo de incidente."}),
   description: z.string().min(10, { message: "La descripción debe tener al menos 10 caracteres." }),
-  attachmentLandlord: z.custom<FileList>((val) => val instanceof FileList, "Se esperaba un archivo").optional(),
+  initialAttachment: z.custom<FileList>((val) => val instanceof FileList, "Se esperaba un archivo").optional(),
 });
 
 export type IncidentFormValues = z.infer<typeof incidentFormSchema>;
@@ -34,32 +34,32 @@ interface IncidentFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSave: (data: IncidentFormValues) => Promise<void>; 
-  landlordContracts: Contract[]; // Active contracts for the landlord
+  userContracts: Contract[]; 
+  currentUserRole: UserRole | null;
 }
 
-export function IncidentFormDialog({ open, onOpenChange, onSave, landlordContracts }: IncidentFormDialogProps) {
-  const { currentUser } = useAuth();
+export function IncidentFormDialog({ open, onOpenChange, onSave, userContracts, currentUserRole }: IncidentFormDialogProps) {
   const { toast } = useToast();
 
   const form = useForm<IncidentFormValues>({
     resolver: zodResolver(incidentFormSchema),
     defaultValues: {
-      contractId: landlordContracts.find(c => c.status === "Activo")?.id || "",
+      contractId: userContracts.find(c => c.status === "Activo")?.id || "",
       type: "otros",
       description: "",
-      attachmentLandlord: undefined,
+      initialAttachment: undefined,
     },
   });
 
   async function onSubmit(values: IncidentFormValues) {
-    if (!currentUser || currentUser.role !== "Arrendador") {
-      toast({ title: "Error de Permiso", description: "Solo los arrendadores pueden crear incidentes.", variant: "destructive" });
+    if (!currentUserRole) { // currentUserRole check instead of currentUser
+      toast({ title: "Error de Permiso", description: "No se pudo determinar el rol del usuario.", variant: "destructive" });
       return;
     }
     await onSave(values);
     form.reset({ 
-        contractId: landlordContracts.find(c => c.status === "Activo")?.id || "",
-        type: "otros", description: "", attachmentLandlord: undefined 
+        contractId: userContracts.find(c => c.status === "Activo")?.id || "",
+        type: "otros", description: "", initialAttachment: undefined 
     });
   }
 
@@ -68,8 +68,8 @@ export function IncidentFormDialog({ open, onOpenChange, onSave, landlordContrac
       onOpenChange(isOpen);
       if (!isOpen) {
         form.reset({ 
-            contractId: landlordContracts.find(c => c.status === "Activo")?.id || "",
-            type: "otros", description: "", attachmentLandlord: undefined 
+            contractId: userContracts.find(c => c.status === "Activo")?.id || "",
+            type: "otros", description: "", initialAttachment: undefined 
         });
       }
     }}>
@@ -79,7 +79,7 @@ export function IncidentFormDialog({ open, onOpenChange, onSave, landlordContrac
             <AlertTriangle className="h-5 w-5 mr-2 text-primary" /> Crear Nuevo Incidente
           </DialogTitle>
           <DialogDescription>
-            Describe el incidente para notificar al inquilino.
+            Describe el incidente para notificar a la otra parte.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -97,9 +97,11 @@ export function IncidentFormDialog({ open, onOpenChange, onSave, landlordContrac
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {landlordContracts.filter(c => c.status === "Activo").map(contract => (
+                      {userContracts.filter(c => c.status === "Activo").map(contract => (
                         <SelectItem key={contract.id} value={contract.id}>
-                          {contract.propertyName} (Inquilino: {contract.tenantName || contract.tenantEmail})
+                          {contract.propertyName} (
+                            {currentUserRole === 'Arrendador' ? `Inquilino: ${contract.tenantName || contract.tenantEmail}` : `Arrendador: ${contract.landlordName}`}
+                          )
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -145,7 +147,7 @@ export function IncidentFormDialog({ open, onOpenChange, onSave, landlordContrac
             />
             <FormField
               control={form.control}
-              name="attachmentLandlord"
+              name="initialAttachment"
               render={({ field: { onChange, value, ...rest } }) => ( 
                 <FormItem>
                   <FormLabel className="flex items-center">
@@ -177,4 +179,3 @@ export function IncidentFormDialog({ open, onOpenChange, onSave, landlordContrac
     </Dialog>
   );
 }
-

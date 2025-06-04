@@ -79,22 +79,28 @@ export interface Incident {
   contractId: string;
   propertyId: string; 
   propertyName: string; 
-  landlordId: string;
+  landlordId: string; // UID of property owner
   landlordName?: string;
-  tenantId: string;
+  tenantId: string; // UID of tenant
   tenantName?: string;
+  
   type: IncidentType;
-  description: string; // Landlord's initial description
-  attachmentUrlLandlord?: string; // Optional, landlord's attachment
   status: IncidentStatus;
-  createdAt: string; // ISO timestamp
-  createdBy: string; // Landlord's UID (who created the incident)
   
-  tenantResponseText?: string; // Tenant's comment
-  attachmentUrlTenant?: string; // Optional, tenant's attachment
-  respondedAt?: string; // ISO timestamp of tenant's response
+  // Initial Report
+  description: string; // The first description of the incident
+  initialAttachmentUrl?: string; // Attachment for the initial report
+  createdAt: string; 
+  createdBy: string; // UID of user who created the incident (can be Landlord or Tenant)
   
-  closedAt?: string; // ISO timestamp when landlord closed it
-  closedBy?: string; // Landlord's UID (who closed the incident)
+  // Response
+  responseText?: string; // The response text to the initial report
+  responseAttachmentUrl?: string; // Attachment for the response
+  respondedAt?: string; 
+  respondedBy?: string; // UID of user who responded
+  
+  // Closure
+  closedAt?: string;
+  closedBy?: string; // UID of user who closed (should be same as createdBy)
 }
 
