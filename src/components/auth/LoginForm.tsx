@@ -1,0 +1,95 @@
+"use client";
+
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import * as z from "zod";
+import { signInWithEmailAndPassword } from "firebase/auth";
+import { auth } from "@/lib/firebase";
+import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
+import { LogIn } from "lucide-react";
+
+const formSchema = z.object({
+  email: z.string().email({ message: "Por favor ingresa un correo válido." }),
+  password: z.string().min(6, { message: "La contraseña debe tener al menos 6 caracteres." }),
+});
+
+export function LoginForm() {
+  const { toast } = useToast();
+  const router = useRouter();
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      email: "",
+      password: "",
+    },
+  });
+
+  async function onSubmit(values: z.infer<typeof formSchema>) {
+    try {
+      await signInWithEmailAndPassword(auth, values.email, values.password);
+      toast({
+        title: "Inicio de Sesión Exitoso",
+        description: "Bienvenido de nuevo a S.A.R.A.",
+      });
+      router.push("/dashboard");
+    } catch (error: any) {
+      console.error("Error during login:", error);
+      let errorMessage = "Ocurrió un error al iniciar sesión.";
+      if (error.code === "auth/user-not-found" || error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
+        errorMessage = "Correo electrónico o contraseña incorrectos.";
+      }
+      toast({
+        title: "Error de Inicio de Sesión",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
+  }
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+        <FormField
+          control={form.control}
+          name="email"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Correo Electrónico</FormLabel>
+              <FormControl>
+                <Input placeholder="tu@correo.com" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="password"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Contraseña</FormLabel>
+              <FormControl>
+                <Input type="password" placeholder="••••••••" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+          {form.formState.isSubmitting ? "Iniciando..." : <> <LogIn className="mr-2 h-4 w-4" /> Iniciar Sesión</>}
+        </Button>
+      </form>
+    </Form>
+  );
+}
