@@ -50,7 +50,7 @@ async function getTenantCertificateData(tenantUid: string): Promise<TenantCertif
       contractId: contract.id,
       propertyAddress: contract.propertyName || `Propiedad ID: ${contract.propertyId.substring(0,8)}`,
       startDate: new Date(contract.startDate).toLocaleDateString('es-CL'),
-      endDate: new Date(contract.endDate).toLocaleDateJString('es-CL'),
+      endDate: new Date(contract.endDate).toLocaleDateString('es-CL'), // Corrected: toLocaleDateString
       landlordName: landlordName,
     });
 
@@ -184,9 +184,11 @@ export default async function CertificadoPage() {
                         <Link href="/dashboard">
                             <Button variant="outline"><ArrowLeft className="mr-2 h-4 w-4" /> Volver al Panel</Button>
                         </Link>
+                        {/* The print button is now handled by TenantCertificateDisplay client component 
                         <Button onClick={() => typeof window !== "undefined" && window.print()} disabled>
                             <Printer className="mr-2 h-4 w-4" /> Imprimir Certificado (Cargando...)
                         </Button>
+                        */}
                     </div>
                      {/* The TenantCertificateDisplay component will be rendered client-side */}
                      {/* It will fetch its own data using the current user's context */}
@@ -197,3 +199,4 @@ export default async function CertificadoPage() {
     </AppLayout>
   );
 }
+
