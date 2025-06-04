@@ -4,8 +4,8 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import type { Contract, UserRole } from "@/types";
-import { Eye, CheckCircle2, XCircle, Edit3, FileText, CalendarDays, User, Building, ShieldCheck, Receipt } from "lucide-react";
+import type { Contract, UserRole, InitialPropertyStateStatus } from "@/types";
+import { Eye, CheckCircle2, XCircle, Edit3, FileText, CalendarDays, User, Building, ShieldCheck, Receipt, Archive } from "lucide-react";
 
 interface ContractCardProps {
   contract: Contract;
@@ -14,9 +14,20 @@ interface ContractCardProps {
   onApprove?: (contract: Contract) => void; // Tenant action
   onReject?: (contract: Contract) => void; // Tenant action
   onManage?: (contract: Contract) => void; // Landlord action
+  onDeclareInitialState?: (contract: Contract) => void; // Landlord action
+  onReviewInitialState?: (contract: Contract) => void; // Tenant action
 }
 
-export function ContractCard({ contract, userRole, onViewDetails, onApprove, onReject, onManage }: ContractCardProps) {
+export function ContractCard({ 
+  contract, 
+  userRole, 
+  onViewDetails, 
+  onApprove, 
+  onReject, 
+  onManage,
+  onDeclareInitialState,
+  onReviewInitialState
+}: ContractCardProps) {
   
   const getStatusVariant = (status: Contract["status"]) => {
     switch (status) {
@@ -33,7 +44,39 @@ export function ContractCard({ contract, userRole, onViewDetails, onApprove, onR
     }
   };
 
+  const getInitialStateStatusText = (status?: InitialPropertyStateStatus) => {
+    if (!status || status === "no_declarado") return null;
+    const map: Record<InitialPropertyStateStatus, string> = {
+      no_declarado: "Sin Declarar",
+      pendiente_inquilino: "Estado Inicial Pendiente Inquilino",
+      aceptado_inquilino: "Estado Inicial Aceptado",
+      rechazado_inquilino: "Estado Inicial Rechazado",
+    };
+    return map[status];
+  };
+
+  const getInitialStateBadgeVariant = (status?: InitialPropertyStateStatus) => {
+     if (!status || status === "no_declarado") return "invisible";
+     switch (status) {
+      case "pendiente_inquilino":
+        return "bg-orange-400 text-orange-900";
+      case "aceptado_inquilino":
+        return "bg-green-500 text-white";
+      case "rechazado_inquilino":
+        return "bg-red-500 text-white";
+      default:
+        return "bg-gray-300 text-gray-700";
+    }
+  }
+
   const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString('es-CL');
+  const showDeclareInitialStateButton = userRole === "Arrendador" && 
+                                     (contract.status === "Activo" || contract.status === "Pendiente") && 
+                                     (!contract.initialPropertyStateStatus || contract.initialPropertyStateStatus === "no_declarado");
+
+  const showReviewInitialStateButton = userRole === "Inquilino" && 
+                                     contract.initialPropertyStateStatus === "pendiente_inquilino";
+
 
   return (
     <Card className="shadow-md hover:shadow-lg transition-shadow duration-300 flex flex-col">
@@ -45,6 +88,11 @@ export function ContractCard({ contract, userRole, onViewDetails, onApprove, onR
         <CardDescription className="text-sm text-muted-foreground pt-1">
           {userRole === "Arrendador" ? `Inquilino: ${contract.tenantName || 'N/A'}` : `Arrendador: ${contract.landlordName || 'N/A'}`}
         </CardDescription>
+         {contract.initialPropertyStateStatus && contract.initialPropertyStateStatus !== "no_declarado" && (
+          <Badge variant="outline" className={`mt-1 text-xs py-0.5 px-1.5 w-fit ${getInitialStateBadgeVariant(contract.initialPropertyStateStatus)}`}>
+            {getInitialStateStatusText(contract.initialPropertyStateStatus)}
+          </Badge>
+        )}
       </CardHeader>
       <CardContent className="space-y-2 text-sm flex-grow">
         <div className="flex items-center">
@@ -76,7 +124,7 @@ export function ContractCard({ contract, userRole, onViewDetails, onApprove, onR
           </div>
         )}
       </CardContent>
-      <CardFooter className="flex justify-end space-x-2 bg-muted/30 p-4 mt-auto">
+      <CardFooter className="flex flex-wrap justify-end gap-2 bg-muted/30 p-4 mt-auto">
         <Button variant="outline" size="sm" onClick={() => onViewDetails(contract)}>
           <Eye className="h-4 w-4 mr-1" /> Detalles
         </Button>
@@ -86,16 +134,27 @@ export function ContractCard({ contract, userRole, onViewDetails, onApprove, onR
               <XCircle className="h-4 w-4 mr-1" /> Rechazar
             </Button>
             <Button className="bg-accent hover:bg-accent/90 text-accent-foreground" size="sm" onClick={() => onApprove(contract)}>
-              <CheckCircle2 className="h-4 w-4 mr-1" /> Aprobar
+              <CheckCircle2 className="h-4 w-4 mr-1" /> Aprobar Contrato
             </Button>
           </>
         )}
         {userRole === "Arrendador" && onManage && (
           <Button variant="default" size="sm" onClick={() => onManage(contract)}>
-            <Edit3 className="h-4 w-4 mr-1" /> Gestionar
+            <Edit3 className="h-4 w-4 mr-1" /> Gestionar Contrato
+          </Button>
+        )}
+         {showDeclareInitialStateButton && onDeclareInitialState && (
+          <Button variant="secondary" size="sm" onClick={() => onDeclareInitialState(contract)}>
+            <Archive className="h-4 w-4 mr-1" /> Declarar Estado Inicial
+          </Button>
+        )}
+        {showReviewInitialStateButton && onReviewInitialState && (
+           <Button variant="secondary" size="sm" onClick={() => onReviewInitialState(contract)}>
+            <Archive className="h-4 w-4 mr-1" /> Revisar Estado Inicial
           </Button>
         )}
       </CardFooter>
     </Card>
   );
 }
+
