@@ -4,9 +4,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { PaymentFormDialog, type PaymentFormValues } from "@/components/pagos/PaymentFormDialog";
-import { PaymentCard } from "@/components/pagos/PaymentCard";
+// PaymentCard is no longer directly used for list display, but kept for potential future detail view
+// import { PaymentCard } from "@/components/pagos/PaymentCard"; 
 import type { Payment, Contract } from "@/types";
-import { PlusCircle, Search, CreditCard } from "lucide-react"; // Removed ListChecks
+import { PlusCircle, Search, CreditCard, CheckCircle2, Eye, AlertCircle } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
@@ -26,7 +27,15 @@ import {
   getDoc
 } from "firebase/firestore";
 import { getDate } from "date-fns";
-
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 
 export default function PagosPage() {
   const { currentUser } = useAuth();
@@ -71,10 +80,8 @@ export default function PagosPage() {
     try {
       let q;
       if (currentUser.role === "Arrendador") {
-        // For landlords, query the 'payments' collection group
         q = query(collectionGroup(db, "payments"), where("landlordId", "==", currentUser.uid), orderBy("declaredAt", "desc"));
       } else if (currentUser.role === "Inquilino") {
-        // For tenants, also query the 'payments' collection group
         q = query(collectionGroup(db, "payments"), where("tenantId", "==", currentUser.uid), orderBy("declaredAt", "desc"));
       } else {
         setPayments([]);
@@ -129,7 +136,6 @@ export default function PagosPage() {
         return;
       }
       const selectedContract = selectedContractSnap.data() as Contract;
-
 
       let attachmentUrlValue: string | undefined = undefined;
       if (values.attachment && values.attachment.length > 0) {
@@ -205,6 +211,24 @@ export default function PagosPage() {
     }
   };
     
+  const formatDate = (dateString?: string) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleDateString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+
+  const formatDateTime = (dateString?: string) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  }
+
+  const getStatusBadgeVariant = (status: Payment["status"]) => {
+    switch (status) {
+      case "pendiente": return "bg-yellow-100 text-yellow-800";
+      case "aceptado": return "bg-green-100 text-green-800";
+      default: return "bg-gray-100 text-gray-800";
+    }
+  };
+
   if (isLoading && payments.length === 0) return <div className="p-4">Cargando pagos...</div>;
 
   const paymentStatusOptions: (Payment["status"] | "todos")[] = ["todos", "pendiente", "aceptado"];
@@ -224,7 +248,7 @@ export default function PagosPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-        <h1 className="text-3xl font-bold font-headline">Gestión de Pagos</h1>
+        <h1 className="text-3xl font-bold font-headline flex items-center"><CreditCard className="mr-2 h-8 w-8 text-primary" />Gestión de Pagos</h1>
         {userRole === "Inquilino" && (
           <Button onClick={() => setIsPaymentFormOpen(true)} size="lg" disabled={isSubmitting || tenantActiveContracts.length === 0}>
             <PlusCircle className="mr-2 h-5 w-5" /> Declarar Nuevo Pago
@@ -257,33 +281,90 @@ export default function PagosPage() {
         </Tabs>
       </div>
 
-      {filteredPayments.length === 0 ? (
-        <div className="text-center py-10">
-          <CreditCard className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-          <h3 className="text-xl font-semibold">No se encontraron pagos</h3>
-          <p className="text-muted-foreground">
-            {searchTerm || statusFilter !== "todos" ? "Intenta con otros filtros. " : ""}
-            {userRole === "Inquilino" && 
-              <Button variant="link" className="p-0 h-auto" onClick={() => setIsPaymentFormOpen(true)} disabled={tenantActiveContracts.length === 0}>
-                Declara un nuevo pago
-              </Button>
-            }
-            {userRole === "Arrendador" && "No hay pagos que coincidan con los filtros."}
-          </p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredPayments.map((payment) => (
-            <PaymentCard
-              key={payment.id}
-              payment={payment}
-              userRole={userRole || null}
-              onAcceptPayment={userRole === "Arrendador" && payment.status === "pendiente" ? handleAcceptPayment : undefined}
-              isAcceptingPayment={isAccepting}
-            />
-          ))}
-        </div>
-      )}
+      <div className="bg-card p-4 rounded-lg shadow">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="w-[150px]">Propiedad</TableHead>
+              <TableHead>Tipo</TableHead>
+              <TableHead className="text-right">Monto</TableHead>
+              <TableHead>Fecha Pago</TableHead>
+              {userRole === "Arrendador" && <TableHead>Inquilino</TableHead>}
+              {userRole === "Inquilino" && <TableHead>Arrendador</TableHead>}
+              <TableHead>Estado</TableHead>
+              <TableHead>Declarado</TableHead>
+              <TableHead>Aceptado</TableHead>
+              <TableHead className="text-center">Acciones</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {isLoading && (
+              <TableRow>
+                <TableCell colSpan={userRole === "Arrendador" || userRole === "Inquilino" ? 9 : 8} className="text-center">
+                  Cargando pagos...
+                </TableCell>
+              </TableRow>
+            )}
+            {!isLoading && filteredPayments.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={userRole === "Arrendador" || userRole === "Inquilino" ? 9 : 8} className="text-center py-10">
+                  <CreditCard className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                  <h3 className="text-xl font-semibold">No se encontraron pagos</h3>
+                  <p className="text-muted-foreground">
+                    {searchTerm || statusFilter !== "todos" ? "Intenta con otros filtros. " : ""}
+                    {userRole === "Inquilino" && 
+                      <Button variant="link" className="p-0 h-auto" onClick={() => setIsPaymentFormOpen(true)} disabled={tenantActiveContracts.length === 0}>
+                        Declara un nuevo pago
+                      </Button>
+                    }
+                    {userRole === "Arrendador" && "No hay pagos que coincidan con los filtros."}
+                  </p>
+                </TableCell>
+              </TableRow>
+            )}
+            {!isLoading && filteredPayments.map((payment) => (
+              <TableRow key={payment.id}>
+                <TableCell className="font-medium">{payment.propertyName || payment.propertyId.substring(0,8)}</TableCell>
+                <TableCell className="capitalize">{payment.type}</TableCell>
+                <TableCell className="text-right">${payment.amount.toLocaleString('es-CL')}</TableCell>
+                <TableCell>
+                  {formatDate(payment.paymentDate)}
+                  {payment.isOverdue && (
+                    <Badge variant="destructive" className="ml-2 text-xs p-1">
+                      <AlertCircle className="h-3 w-3 mr-1" />Atrasado
+                    </Badge>
+                  )}
+                </TableCell>
+                {userRole === "Arrendador" && <TableCell>{payment.tenantName || 'N/A'}</TableCell>}
+                {userRole === "Inquilino" && <TableCell>{payment.landlordName || 'N/A'}</TableCell>}
+                <TableCell>
+                  <Badge variant="outline" className={`${getStatusBadgeVariant(payment.status)} capitalize`}>
+                    {payment.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>{formatDateTime(payment.declaredAt)}</TableCell>
+                <TableCell>{payment.status === 'aceptado' ? formatDateTime(payment.acceptedAt) : 'N/A'}</TableCell>
+                <TableCell className="text-center">
+                  {userRole === "Arrendador" && payment.status === "pendiente" && (
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      onClick={() => handleAcceptPayment(payment.id, payment.contractId)}
+                      disabled={isAccepting}
+                      className="text-green-600 hover:text-green-700 hover:bg-green-50"
+                    >
+                      <CheckCircle2 className="h-4 w-4 mr-1" /> {isAccepting ? "Aceptando..." : "Aceptar"}
+                    </Button>
+                  )}
+                   {/* <Button variant="ghost" size="sm" onClick={() => toast({ title: "Detalles de Pago", description: "Funcionalidad de vista detallada pendiente."})}>
+                        <Eye className="h-4 w-4 mr-1" /> Ver
+                    </Button> */}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </div>
 
       {userRole === "Inquilino" && (
         <PaymentFormDialog
@@ -296,4 +377,3 @@ export default function PagosPage() {
     </div>
   );
 }
-
