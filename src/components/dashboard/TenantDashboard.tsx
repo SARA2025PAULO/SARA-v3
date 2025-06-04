@@ -161,7 +161,7 @@ export function TenantDashboard() {
                   <p className="flex items-center"><CalendarDays className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Inicio de Contrato:</span> {new Date(currentContract.startDate).toLocaleDateString('es-CL')}</p>
                   <p className="flex items-center"><CalendarDays className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Fin de Contrato:</span> {new Date(currentContract.endDate).toLocaleDateString('es-CL')}</p>
                   <Button asChild className="w-full mt-4">
-                    <Link href={`/contratos/${currentContract.id}`}> 
+                    <Link href="/contratos"> {/* Corrected Link */}
                       <FileText className="mr-2 h-4 w-4" /> Ver Detalles del Contrato
                     </Link>
                   </Button>
@@ -211,3 +211,4 @@ export function TenantDashboard() {
   );
 }
 
+    

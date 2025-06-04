@@ -46,14 +46,13 @@ export function ContractCard({
 
   const getInitialStateStatusText = (status?: InitialPropertyStateStatus) => {
     if (!status || status.toLowerCase() === "no_declarado") return null;
-    const map: Record<InitialPropertyStateStatus, string> = {
-      no_declarado: "Sin Declarar",
-      pendiente_inquilino: "Estado Inicial Pendiente Inquilino",
-      aceptado_inquilino: "Estado Inicial Aceptado",
-      rechazado_inquilino: "Estado Inicial Rechazado",
+    const map: Record<string, string> = { // Allow any string as key for safety
+      "no_declarado": "Sin Declarar",
+      "pendiente_inquilino": "Estado Inicial Pendiente Inquilino",
+      "aceptado_inquilino": "Estado Inicial Aceptado",
+      "rechazado_inquilino": "Estado Inicial Rechazado",
     };
-    // Handle potential casing issues by converting to lower case for key lookup if necessary
-    return map[status.toLowerCase() as InitialPropertyStateStatus] || map[status as InitialPropertyStateStatus] || status;
+    return map[status.toLowerCase() as InitialPropertyStateStatus] || status;
   };
 
   const getInitialStateBadgeVariant = (status?: InitialPropertyStateStatus) => {
@@ -75,12 +74,17 @@ export function ContractCard({
   const contractStatusLower = contract.status?.toLowerCase();
   const initialStatusLower = contract.initialPropertyStateStatus?.toLowerCase();
 
-  const showDeclareInitialStateButton = userRole?.toLowerCase() === "arrendador" &&
-                                     (contractStatusLower === "activo" || contractStatusLower === "pendiente") &&
-                                     (initialStatusLower === undefined || initialStatusLower === "no_declarado");
+  // Simplified condition for showing "Declare Initial State" button
+  const showDeclareInitialStateButton = 
+    userRole?.toLowerCase() === "arrendador" &&
+    (contractStatusLower === "activo" || contractStatusLower === "pendiente") &&
+    !(initialStatusLower === "pendiente_inquilino" || 
+      initialStatusLower === "aceptado_inquilino" || 
+      initialStatusLower === "rechazado_inquilino");
 
-  const showReviewInitialStateButton = userRole?.toLowerCase() === "inquilino" &&
-                                     initialStatusLower === "pendiente_inquilino";
+  const showReviewInitialStateButton = 
+    userRole?.toLowerCase() === "inquilino" &&
+    initialStatusLower === "pendiente_inquilino";
 
 
   return (
@@ -91,9 +95,9 @@ export function ContractCard({
           <Badge className={`${getStatusVariant(contract.status)} text-xs`}>{contract.status}</Badge>
         </div>
         <CardDescription className="text-sm text-muted-foreground pt-1">
-          {userRole === "Arrendador" ? `Inquilino: ${contract.tenantName || 'N/A'}` : `Arrendador: ${contract.landlordName || 'N/A'}`}
+          {userRole?.toLowerCase() === "arrendador" ? `Inquilino: ${contract.tenantName || 'N/A'}` : `Arrendador: ${contract.landlordName || 'N/A'}`}
         </CardDescription>
-         {contract.initialPropertyStateStatus && contract.initialPropertyStateStatus.toLowerCase() !== "no_declarado" && (
+         {contract.initialPropertyStateStatus && initialStatusLower !== "no_declarado" && (
           <Badge variant="outline" className={`mt-1 text-xs py-0.5 px-1.5 w-fit ${getInitialStateBadgeVariant(contract.initialPropertyStateStatus)}`}>
             {getInitialStateStatusText(contract.initialPropertyStateStatus)}
           </Badge>
@@ -106,7 +110,7 @@ export function ContractCard({
         </div>
         <div className="flex items-center">
           <User className="h-4 w-4 mr-2 text-primary flex-shrink-0" />
-          <span>{userRole === "Arrendador" ? `Inquilino: ${contract.tenantName || contract.tenantEmail}` : `Arrendador: ${contract.landlordName || contract.landlordId}`}</span>
+          <span>{userRole?.toLowerCase() === "arrendador" ? `Inquilino: ${contract.tenantName || contract.tenantEmail}` : `Arrendador: ${contract.landlordName || contract.landlordId}`}</span>
         </div>
         <div className="flex items-center">
           <CalendarDays className="h-4 w-4 mr-2 text-primary flex-shrink-0" />
@@ -133,7 +137,7 @@ export function ContractCard({
         <Button variant="outline" size="sm" onClick={() => onViewDetails(contract)}>
           <Eye className="h-4 w-4 mr-1" /> Detalles
         </Button>
-        {userRole === "Inquilino" && contract.status === "Pendiente" && onApprove && onReject && (
+        {userRole?.toLowerCase() === "inquilino" && contract.status?.toLowerCase() === "pendiente" && onApprove && onReject && (
           <>
             <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onReject(contract)}>
               <XCircle className="h-4 w-4 mr-1" /> Rechazar
@@ -143,7 +147,7 @@ export function ContractCard({
             </Button>
           </>
         )}
-        {userRole === "Arrendador" && onManage && (
+        {userRole?.toLowerCase() === "arrendador" && onManage && (
           <Button variant="default" size="sm" onClick={() => onManage(contract)}>
             <Edit3 className="h-4 w-4 mr-1" /> Gestionar Contrato
           </Button>
@@ -162,3 +166,5 @@ export function ContractCard({
     </Card>
   );
 }
+
+    
