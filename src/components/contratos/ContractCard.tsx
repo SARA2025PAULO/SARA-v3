@@ -14,30 +14,30 @@ interface ContractCardProps {
   onApprove?: (contract: Contract) => void; // Tenant action
   onReject?: (contract: Contract) => void; // Tenant action
   onManage?: (contract: Contract) => void; // Landlord action
-  onDeclareInitialState?: (contract: Contract) => void; // Landlord action
-  onReviewInitialState?: (contract: Contract) => void; // Tenant action
+  onDeclareInitialState?: (contract: Contract) => void;
+  onReviewInitialState?: (contract: Contract) => void;
 }
 
-export function ContractCard({ 
-  contract, 
-  userRole, 
-  onViewDetails, 
-  onApprove, 
-  onReject, 
+export function ContractCard({
+  contract,
+  userRole,
+  onViewDetails,
+  onApprove,
+  onReject,
   onManage,
   onDeclareInitialState,
   onReviewInitialState
 }: ContractCardProps) {
-  
+
   const getStatusVariant = (status: Contract["status"]) => {
-    switch (status) {
-      case "Pendiente":
+    switch (status?.toLowerCase()) {
+      case "pendiente":
         return "bg-yellow-400 text-yellow-900";
-      case "Aprobado":
-      case "Activo":
+      case "aprobado":
+      case "activo":
         return "bg-accent text-accent-foreground";
-      case "Rechazado":
-      case "Finalizado":
+      case "rechazado":
+      case "finalizado":
         return "bg-destructive/80 text-destructive-foreground";
       default:
         return "bg-secondary text-secondary-foreground";
@@ -45,19 +45,20 @@ export function ContractCard({
   };
 
   const getInitialStateStatusText = (status?: InitialPropertyStateStatus) => {
-    if (!status || status === "no_declarado") return null;
+    if (!status || status.toLowerCase() === "no_declarado") return null;
     const map: Record<InitialPropertyStateStatus, string> = {
       no_declarado: "Sin Declarar",
       pendiente_inquilino: "Estado Inicial Pendiente Inquilino",
       aceptado_inquilino: "Estado Inicial Aceptado",
       rechazado_inquilino: "Estado Inicial Rechazado",
     };
-    return map[status];
+    // Handle potential casing issues by converting to lower case for key lookup if necessary
+    return map[status.toLowerCase() as InitialPropertyStateStatus] || map[status as InitialPropertyStateStatus] || status;
   };
 
   const getInitialStateBadgeVariant = (status?: InitialPropertyStateStatus) => {
-     if (!status || status === "no_declarado") return "invisible";
-     switch (status) {
+     if (!status || status.toLowerCase() === "no_declarado") return "invisible";
+     switch (status.toLowerCase()) {
       case "pendiente_inquilino":
         return "bg-orange-400 text-orange-900";
       case "aceptado_inquilino":
@@ -70,12 +71,16 @@ export function ContractCard({
   }
 
   const formatDate = (dateString: string) => new Date(dateString).toLocaleDateString('es-CL');
-  const showDeclareInitialStateButton = userRole === "Arrendador" && 
-                                     (contract.status === "Activo" || contract.status === "Pendiente") && 
-                                     (!contract.initialPropertyStateStatus || contract.initialPropertyStateStatus === "no_declarado");
 
-  const showReviewInitialStateButton = userRole === "Inquilino" && 
-                                     contract.initialPropertyStateStatus === "pendiente_inquilino";
+  const contractStatusLower = contract.status?.toLowerCase();
+  const initialStatusLower = contract.initialPropertyStateStatus?.toLowerCase();
+
+  const showDeclareInitialStateButton = userRole?.toLowerCase() === "arrendador" &&
+                                     (contractStatusLower === "activo" || contractStatusLower === "pendiente") &&
+                                     (initialStatusLower === undefined || initialStatusLower === "no_declarado");
+
+  const showReviewInitialStateButton = userRole?.toLowerCase() === "inquilino" &&
+                                     initialStatusLower === "pendiente_inquilino";
 
 
   return (
@@ -88,7 +93,7 @@ export function ContractCard({
         <CardDescription className="text-sm text-muted-foreground pt-1">
           {userRole === "Arrendador" ? `Inquilino: ${contract.tenantName || 'N/A'}` : `Arrendador: ${contract.landlordName || 'N/A'}`}
         </CardDescription>
-         {contract.initialPropertyStateStatus && contract.initialPropertyStateStatus !== "no_declarado" && (
+         {contract.initialPropertyStateStatus && contract.initialPropertyStateStatus.toLowerCase() !== "no_declarado" && (
           <Badge variant="outline" className={`mt-1 text-xs py-0.5 px-1.5 w-fit ${getInitialStateBadgeVariant(contract.initialPropertyStateStatus)}`}>
             {getInitialStateStatusText(contract.initialPropertyStateStatus)}
           </Badge>
@@ -157,4 +162,3 @@ export function ContractCard({
     </Card>
   );
 }
-
