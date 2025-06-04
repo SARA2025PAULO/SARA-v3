@@ -1,9 +1,10 @@
+
 "use client";
 
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, FileText, LayoutDashboard, LogOut, Building2, Users } from "lucide-react";
+import { Home, FileText, LayoutDashboard, LogOut, Building2, Users, CreditCard } from "lucide-react";
 import {
   SidebarProvider,
   Sidebar,
@@ -20,7 +21,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { Header } from "./Header"; // Assuming Header.tsx is in the same directory
+import { Header } from "./Header"; 
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -42,7 +43,7 @@ export function AppLayout({ children }: AppLayoutProps) {
   }
 
   if (!currentUser) {
-    return null; // Or a redirect, though useEffect handles it
+    return null; 
   }
   
   const isArrendador = currentUser.role === "Arrendador";
@@ -51,6 +52,7 @@ export function AppLayout({ children }: AppLayoutProps) {
     { href: "/dashboard", label: "Panel de Control", icon: LayoutDashboard },
     ...(isArrendador ? [{ href: "/propiedades", label: "Propiedades", icon: Building2 }] : []),
     { href: "/contratos", label: "Contratos", icon: FileText },
+    { href: "/pagos", label: "Pagos", icon: CreditCard },
   ];
 
   return (

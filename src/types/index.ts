@@ -48,3 +48,25 @@ export interface Contract {
   updatedAt?: string; // ISO date string for when the contract was last updated
 }
 
+export type PaymentType = "arriendo" | "gastos comunes" | "reparaciones" | "otros";
+export type PaymentStatus = "pendiente" | "aceptado";
+
+export interface Payment {
+  id: string; // Firestore document ID
+  contractId: string;
+  propertyId: string; // Denormalized from contract for easier querying by landlord
+  propertyName?: string; // Denormalized from contract
+  tenantId: string;
+  tenantName?: string; // Denormalized
+  landlordId: string;
+  landlordName?: string; // Denormalized
+  type: PaymentType;
+  amount: number;
+  paymentDate: string; // ISO string, date of the payment itself
+  notes?: string;
+  status: PaymentStatus;
+  declaredAt: string; // ISO string, when tenant declared the payment
+  acceptedAt?: string; // ISO string, when landlord accepted the payment
+  declaredBy: string; // UID of tenant who declared
+  attachmentUrl?: string; // Optional URL for payment proof
+}
