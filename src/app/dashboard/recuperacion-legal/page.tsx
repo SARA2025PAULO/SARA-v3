@@ -10,17 +10,18 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Gavel, AlertTriangle, FileText, Download, Printer, ListChecks } from "lucide-react";
+import { Gavel, AlertTriangle, FileText, Download, Printer, ListChecks, ListX } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 import { ContractDisplayForLegal } from "@/components/recuperacion-legal/ContractDisplayForLegal";
-import { PaymentHistoryCertificate } from "@/components/recuperacion-legal/PaymentHistoryCertificate"; // Import new component
+import { PaymentHistoryCertificate } from "@/components/recuperacion-legal/PaymentHistoryCertificate";
+import { IncidentHistoryDocument } from "@/components/recuperacion-legal/IncidentHistoryDocument"; // Import new component
 
 // Placeholder for individual document display component
-const LegalDocumentPlaceholder = ({ title, description }: { title: string; description: string }) => (
+const LegalDocumentPlaceholder = ({ title, description, icon: Icon }: { title: string; description: string; icon: React.ElementType }) => (
   <Card className="mt-4">
     <CardHeader>
       <CardTitle className="text-lg flex items-center">
-        <FileText className="mr-2 h-5 w-5 text-primary" />
+        <Icon className="mr-2 h-5 w-5 text-primary" />
         {title}
       </CardTitle>
     </CardHeader>
@@ -140,7 +141,6 @@ export default function RecuperacionLegalPage() {
                     registrada en S.A.R.A para el contrato seleccionado.
                   </p>
                   
-                  {/* Replace placeholder with actual component */}
                   <Card className="mt-4">
                     <CardHeader>
                       <CardTitle className="text-lg flex items-center">
@@ -153,10 +153,17 @@ export default function RecuperacionLegalPage() {
                     </CardContent>
                   </Card>
                   
-                  <LegalDocumentPlaceholder 
-                    title="Historial de Incidentes"
-                    description="Recopila los incidentes registrados para este contrato, especialmente aquellos que constituyan incumplimientos."
-                  />
+                  <Card className="mt-4">
+                    <CardHeader>
+                      <CardTitle className="text-lg flex items-center">
+                        <ListX className="mr-2 h-5 w-5 text-primary" /> {/* Updated Icon */}
+                        Historial de Incidentes
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <IncidentHistoryDocument contract={selectedContract} />
+                    </CardContent>
+                  </Card>
                   
                   <Card className="mt-4">
                     <CardHeader>
@@ -173,6 +180,7 @@ export default function RecuperacionLegalPage() {
                   <LegalDocumentPlaceholder 
                     title="Borrador de Notificación Previa al Inquilino"
                     description="Genera un borrador de notificación de incumplimiento para enviar al inquilino, otorgando un plazo para regularizar la situación."
+                    icon={FileText}
                   />
                   
                   <Separator className="my-6" />
@@ -194,4 +202,3 @@ export default function RecuperacionLegalPage() {
     </div>
   );
 }
-
