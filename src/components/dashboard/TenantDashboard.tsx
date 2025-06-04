@@ -4,10 +4,10 @@
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Home, MessageSquare, Wallet, ShieldCheck, Receipt, CalendarDays } from "lucide-react"; // Added CalendarDays
+import { FileText, Home, MessageSquare, Wallet, ShieldCheck, Receipt, CalendarDays, Award } from "lucide-react"; // Added Award
 import type { Contract, Property } from "@/types";
 import Image from "next/image";
-import { Badge } from "@/components/ui/badge"; // Added Badge import
+import { Badge } from "@/components/ui/badge"; 
 
 // Mock data - replace with actual data fetching
 const mockTenantContracts: Contract[] = [
@@ -68,7 +68,7 @@ export function TenantDashboard() {
                   <p className="flex items-center"><CalendarDays className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Inicio de Contrato:</span> {new Date(currentContract.startDate).toLocaleDateString('es-CL')}</p>
                   <p className="flex items-center"><CalendarDays className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Fin de Contrato:</span> {new Date(currentContract.endDate).toLocaleDateString('es-CL')}</p>
                   <Button asChild className="w-full mt-4">
-                    <Link href={`/contratos/${currentContract.id}`}> {/* Assuming dynamic route for contract details */}
+                    <Link href={`/contratos/${currentContract.id}`}> 
                       <FileText className="mr-2 h-4 w-4" /> Ver Detalles del Contrato
                     </Link>
                   </Button>
@@ -96,6 +96,11 @@ export function TenantDashboard() {
             <Button asChild className="w-full justify-start" size="lg">
               <Link href="/contratos">
                 <FileText className="mr-2 h-5 w-5" /> Mis Contratos
+              </Link>
+            </Button>
+             <Button asChild className="w-full justify-start" size="lg">
+              <Link href="/dashboard/certificado">
+                <Award className="mr-2 h-5 w-5" /> Mi Certificado de Comportamiento
               </Link>
             </Button>
             <Button variant="outline" className="w-full justify-start" size="lg" disabled>

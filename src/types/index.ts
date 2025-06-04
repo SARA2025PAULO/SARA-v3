@@ -1,5 +1,4 @@
 
-
 export type UserRole = "Arrendador" | "Inquilino";
 
 export interface UserProfile {
@@ -7,6 +6,7 @@ export interface UserProfile {
   email: string | null;
   role: UserRole | null; 
   displayName?: string; 
+  createdAt?: string; // ISO date string, from when the user was registered/profile created
 }
 
 export type PropertyStatus = "Disponible" | "Arrendada" | "Mantenimiento";
@@ -80,9 +80,9 @@ export interface Incident {
   contractId: string;
   propertyId: string; 
   propertyName: string; 
-  landlordId: string; // UID of property owner
+  landlordId: string; 
   landlordName?: string;
-  tenantId: string; // UID of tenant
+  tenantId: string; 
   tenantName?: string;
   
   type: IncidentType;
@@ -129,4 +129,48 @@ export interface Evaluation {
   tenantComment?: string; // Optional comment from the tenant upon confirmation
   tenantConfirmedAt?: string; // ISO date string, when the tenant confirmed receipt
   overallRating?: number; // Optional: can be calculated average
+}
+
+// For Tenant Certificate
+export interface TenantRentalHistory {
+  contractId: string;
+  propertyAddress: string;
+  startDate: string;
+  endDate: string;
+  landlordName: string;
+}
+
+export interface TenantEvaluationsSummary {
+  averagePunctuality: number | null;
+  averagePropertyCare: number | null;
+  averageCommunication: number | null;
+  averageGeneralBehavior: number | null;
+  overallAverage: number | null;
+  evaluations: Evaluation[]; // To list individual comments if needed
+}
+
+export interface TenantPaymentsSummary {
+  totalPaymentsDeclared: number;
+  totalPaymentsAccepted: number;
+  totalAmountAccepted: number;
+  compliancePercentage: number | null;
+  // detailedPaymentRecords: Payment[]; // Or a summary of late payments
+}
+
+export interface TenantIncidentsSummary {
+  totalIncidentsInvolved: number; // Incidents where tenant is involved (created by or for them on their contracts)
+  incidentsReportedByTenant: number;
+  incidentsReceivedByTenant: number;
+  incidentsResolved: number; // (status 'cerrado')
+}
+
+export interface TenantCertificateData {
+  tenantProfile: UserProfile;
+  rentalHistory: TenantRentalHistory[];
+  evaluationsSummary: TenantEvaluationsSummary;
+  paymentsSummary: TenantPaymentsSummary;
+  incidentsSummary: TenantIncidentsSummary;
+  globalScore: number | null; // e.g., 1-10 or 1-5 stars
+  generationDate: string;
+  certificateId: string; // Unique ID for this generated certificate instance
 }
