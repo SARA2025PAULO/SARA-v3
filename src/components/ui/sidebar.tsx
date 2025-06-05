@@ -513,14 +513,14 @@ const SidebarMenuItem = React.forwardRef<
     >
       {children}
       {/* Badge for expanded state (non-mobile) */}
-      {badgeCount && badgeCount > 0 && sidebarState === "expanded" && !isMobile && (
-        <span className="absolute top-1.5 right-2 z-10 flex h-5 min-h-[1.25rem] min-w-[1.25rem] items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-medium text-destructive-foreground group-data-[collapsible=icon]:hidden">
+      {badgeCount !== undefined && badgeCount > 0 && sidebarState === "expanded" && !isMobile && (
+        <span className="absolute top-1/2 -translate-y-1/2 right-3 z-10 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-medium text-destructive-foreground">
           {badgeCount > 99 ? '99+' : badgeCount}
         </span>
       )}
       {/* Dot for collapsed state (non-mobile) or mobile */}
-      {badgeCount && badgeCount > 0 && (sidebarState === "collapsed" || isMobile) && (
-         <span className="absolute top-1 right-1 z-10 h-2.5 w-2.5 rounded-full bg-destructive border-2 border-sidebar group-data-[collapsible=icon]:md:block group-data-[collapsible=icon]:hidden" />
+      {badgeCount !== undefined && badgeCount > 0 && (sidebarState === "collapsed" || isMobile) && (
+         <span className="absolute top-1 right-1 z-10 h-2.5 w-2.5 rounded-full bg-destructive border-2 border-sidebar" />
       )}
     </li>
   )
@@ -776,5 +776,3 @@ export {
   SidebarTrigger,
   useSidebar,
 }
-
-    
