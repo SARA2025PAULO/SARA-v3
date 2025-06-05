@@ -1,0 +1,59 @@
+
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# Dependencies
+/node_modules
+/.pnp
+.pnp.js
+.yarn/install-state.gz
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Next.js
+/.next/
+/out/
+
+# Production build artifacts
+/build
+
+# Uncompiled CSS (if using a preprocessor)
+# *.css.map
+
+# Static HTML export folder
+# /export
+
+# Dotenv environment variables
+.env*.local
+!.env.example
+
+# Local User Settings
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.sublime-workspace
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Thumbnails
+._*
+
+# Files that might appear in the root of a volume
+.Spotlight-V100
+.Trashes
+
+# IDEs and editors
+/.idea
+/dist
+/coverage
+*.log
+
+# Firebase
+.firebase
+firebase-debug.log
