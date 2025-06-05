@@ -134,50 +134,6 @@ export function TenantDashboard() {
           <CardTitle className="text-3xl font-headline">Panel de Inquilino</CardTitle>
           <CardDescription>Bienvenido a tu espacio en S.A.R.A.</CardDescription>
         </CardHeader>
-        {currentContract && propertyDetails ? (
-          <CardContent className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Tu Arriendo Actual</CardTitle>
-                <CardDescription>{propertyDetails.address}</CardDescription>
-              </CardHeader>
-              <CardContent className="grid md:grid-cols-2 gap-6">
-                <div className="rounded-lg mb-4">
-                  {isLoadingScore ? 
-                    <Skeleton className="rounded-lg aspect-video w-full h-auto max-h-[300px]" /> : 
-                    <ScoreDisplay score={globalScore} />
-                  }
-                </div>
-                <div className="space-y-3 text-sm">
-                  <p><span className="font-semibold">Estado del Contrato:</span> <Badge variant={currentContract.status === "Activo" ? "default" : "secondary"} className={`${currentContract.status === "Activo" ? "bg-accent text-accent-foreground" : "bg-yellow-100 text-yellow-800"}`}>{currentContract.status}</Badge></p>
-                  <p><span className="font-semibold">Propietario:</span> {currentContract.landlordName || "N/A"}</p>
-                  <p className="flex items-center"><Wallet className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Renta Mensual:</span> ${currentContract.rentAmount.toLocaleString('es-CL')}</p>
-                  {currentContract.securityDepositAmount !== undefined && (
-                    <p className="flex items-center"><ShieldCheck className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Garantía:</span> ${currentContract.securityDepositAmount.toLocaleString('es-CL')}</p>
-                  )}
-                  {currentContract.paymentDay && (
-                    <p className="flex items-center"><Receipt className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Día de Pago:</span> {currentContract.paymentDay} de cada mes</p>
-                  )}
-                  <p className="flex items-center"><CalendarDays className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Inicio de Contrato:</span> {new Date(currentContract.startDate).toLocaleDateString('es-CL')}</p>
-                  <p className="flex items-center"><CalendarDays className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Fin de Contrato:</span> {new Date(currentContract.endDate).toLocaleDateString('es-CL')}</p>
-                  <Button asChild className="w-full mt-4">
-                    <Link href="/contratos"> 
-                      <FileText className="mr-2 h-4 w-4" /> Ver Detalles del Contrato
-                    </Link>
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </CardContent>
-        ) : (
-          <CardContent>
-            <div className="text-center py-8">
-              <Home className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-              <p className="text-lg font-medium">No tienes contratos activos o pendientes en este momento.</p>
-              <p className="text-muted-foreground">Explora propiedades o contacta a un arrendador.</p>
-            </div>
-          </CardContent>
-        )}
       </Card>
 
       <div className="grid gap-6 md:grid-cols-2">
@@ -207,8 +163,51 @@ export function TenantDashboard() {
 
         <AnnouncementsSection />
       </div>
+      
+      {currentContract && propertyDetails ? (
+          <Card className="shadow-lg">
+            <CardHeader>
+              <CardTitle>Tu Arriendo Actual</CardTitle>
+              <CardDescription>{propertyDetails.address}</CardDescription>
+            </CardHeader>
+            <CardContent className="grid md:grid-cols-2 gap-6">
+              <div className="rounded-lg mb-4">
+                {isLoadingScore ? 
+                  <Skeleton className="rounded-lg aspect-video w-full h-auto max-h-[300px]" /> : 
+                  <ScoreDisplay score={globalScore} />
+                }
+              </div>
+              <div className="space-y-3 text-sm">
+                <p><span className="font-semibold">Estado del Contrato:</span> <Badge variant={currentContract.status === "Activo" ? "default" : "secondary"} className={`${currentContract.status === "Activo" ? "bg-accent text-accent-foreground" : "bg-yellow-100 text-yellow-800"}`}>{currentContract.status}</Badge></p>
+                <p><span className="font-semibold">Propietario:</span> {currentContract.landlordName || "N/A"}</p>
+                <p className="flex items-center"><Wallet className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Renta Mensual:</span> ${currentContract.rentAmount.toLocaleString('es-CL')}</p>
+                {currentContract.securityDepositAmount !== undefined && (
+                  <p className="flex items-center"><ShieldCheck className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Garantía:</span> ${currentContract.securityDepositAmount.toLocaleString('es-CL')}</p>
+                )}
+                {currentContract.paymentDay && (
+                  <p className="flex items-center"><Receipt className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Día de Pago:</span> {currentContract.paymentDay} de cada mes</p>
+                )}
+                <p className="flex items-center"><CalendarDays className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Inicio de Contrato:</span> {new Date(currentContract.startDate).toLocaleDateString('es-CL')}</p>
+                <p className="flex items-center"><CalendarDays className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Fin de Contrato:</span> {new Date(currentContract.endDate).toLocaleDateString('es-CL')}</p>
+                <Button asChild className="w-full mt-4">
+                  <Link href="/contratos"> 
+                    <FileText className="mr-2 h-4 w-4" /> Ver Detalles del Contrato
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ) : (
+          <Card className="shadow-lg">
+            <CardContent>
+              <div className="text-center py-8">
+                <Home className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-lg font-medium">No tienes contratos activos o pendientes en este momento.</p>
+                <p className="text-muted-foreground">Explora propiedades o contacta a un arrendador.</p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
     </div>
   );
 }
-
-    

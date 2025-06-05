@@ -26,45 +26,6 @@ export function LandlordDashboard() {
 
   return (
     <div className="space-y-6">
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-3xl font-headline">Panel de Arrendador</CardTitle>
-          <CardDescription>Gestiona tus propiedades y contratos fácilmente.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-6 md:grid-cols-3">
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Total Propiedades</CardTitle>
-              <Building2 className="h-5 w-5 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{totalProperties}</div>
-              <p className="text-xs text-muted-foreground">Propiedades registradas</p>
-            </CardContent>
-          </Card>
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Propiedades Arrendadas</CardTitle>
-              <Building2 className="h-5 w-5 text-accent" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{rentedProperties}</div>
-              <p className="text-xs text-muted-foreground">Actualmente ocupadas</p>
-            </CardContent>
-          </Card>
-          <Card className="hover:shadow-md transition-shadow">
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Contratos Activos</CardTitle>
-              <FileText className="h-5 w-5 text-primary" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{activeContracts}</div>
-              <p className="text-xs text-muted-foreground">Contratos vigentes o pendientes</p>
-            </CardContent>
-          </Card>
-        </CardContent>
-      </Card>
-
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
@@ -101,6 +62,45 @@ export function LandlordDashboard() {
         
         <AnnouncementsSection />
       </div>
+
+      <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-3xl font-headline">Resumen General</CardTitle>
+          <CardDescription>Estadísticas de tus propiedades y contratos.</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-6 md:grid-cols-3">
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Total Propiedades</CardTitle>
+              <Building2 className="h-5 w-5 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{totalProperties}</div>
+              <p className="text-xs text-muted-foreground">Propiedades registradas</p>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Propiedades Arrendadas</CardTitle>
+              <Building2 className="h-5 w-5 text-accent" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{rentedProperties}</div>
+              <p className="text-xs text-muted-foreground">Actualmente ocupadas</p>
+            </CardContent>
+          </Card>
+          <Card className="hover:shadow-md transition-shadow">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Contratos Activos</CardTitle>
+              <FileText className="h-5 w-5 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{activeContracts}</div>
+              <p className="text-xs text-muted-foreground">Contratos vigentes o pendientes</p>
+            </CardContent>
+          </Card>
+        </CardContent>
+      </Card>
     </div>
   );
 }
