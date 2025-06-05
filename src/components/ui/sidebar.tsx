@@ -1,3 +1,4 @@
+
 "use client"
 
 import * as React from "react"
@@ -500,15 +501,30 @@ SidebarMenu.displayName = "SidebarMenu"
 
 const SidebarMenuItem = React.forwardRef<
   HTMLLIElement,
-  React.ComponentProps<"li">
->(({ className, ...props }, ref) => (
-  <li
-    ref={ref}
-    data-sidebar="menu-item"
-    className={cn("group/menu-item relative", className)}
-    {...props}
-  />
-))
+  React.ComponentProps<"li"> & { badgeCount?: number }
+>(({ className, children, badgeCount, ...props }, ref) => {
+  const { state: sidebarState, isMobile } = useSidebar();
+  return (
+    <li
+      ref={ref}
+      data-sidebar="menu-item"
+      className={cn("group/menu-item relative", className)}
+      {...props}
+    >
+      {children}
+      {/* Badge for expanded state (non-mobile) */}
+      {badgeCount && badgeCount > 0 && sidebarState === "expanded" && !isMobile && (
+        <span className="absolute top-1.5 right-2 z-10 flex h-5 min-h-[1.25rem] min-w-[1.25rem] items-center justify-center rounded-full bg-destructive px-1.5 text-xs font-medium text-destructive-foreground group-data-[collapsible=icon]:hidden">
+          {badgeCount > 99 ? '99+' : badgeCount}
+        </span>
+      )}
+      {/* Dot for collapsed state (non-mobile) or mobile */}
+      {badgeCount && badgeCount > 0 && (sidebarState === "collapsed" || isMobile) && (
+         <span className="absolute top-1 right-1 z-10 h-2.5 w-2.5 rounded-full bg-destructive border-2 border-sidebar group-data-[collapsible=icon]:md:block group-data-[collapsible=icon]:hidden" />
+      )}
+    </li>
+  )
+})
 SidebarMenuItem.displayName = "SidebarMenuItem"
 
 const sidebarMenuButtonVariants = cva(
@@ -549,6 +565,7 @@ const SidebarMenuButton = React.forwardRef<
       size = "default",
       tooltip,
       className,
+      children, // Capture children here
       ...props
     },
     ref
@@ -556,7 +573,7 @@ const SidebarMenuButton = React.forwardRef<
     const Comp = asChild ? Slot : "button"
     const { isMobile, state } = useSidebar()
 
-    const button = (
+    const buttonElement = (
       <Comp
         ref={ref}
         data-sidebar="menu-button"
@@ -564,27 +581,25 @@ const SidebarMenuButton = React.forwardRef<
         data-active={isActive}
         className={cn(sidebarMenuButtonVariants({ variant, size }), className)}
         {...props}
-      />
+      >
+        {children} 
+      </Comp>
     )
 
     if (!tooltip) {
-      return button
+      return buttonElement
     }
 
-    if (typeof tooltip === "string") {
-      tooltip = {
-        children: tooltip,
-      }
-    }
+    const tooltipContentProps = typeof tooltip === "string" ? { children: tooltip } : tooltip;
 
     return (
       <Tooltip>
-        <TooltipTrigger asChild>{button}</TooltipTrigger>
+        <TooltipTrigger asChild>{buttonElement}</TooltipTrigger>
         <TooltipContent
           side="right"
           align="center"
           hidden={state !== "collapsed" || isMobile}
-          {...tooltip}
+          {...tooltipContentProps}
         />
       </Tooltip>
     )
@@ -761,3 +776,5 @@ export {
   SidebarTrigger,
   useSidebar,
 }
+
+    

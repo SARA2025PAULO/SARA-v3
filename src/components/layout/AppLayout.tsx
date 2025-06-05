@@ -28,7 +28,7 @@ interface AppLayoutProps {
 }
 
 export function AppLayout({ children }: AppLayoutProps) {
-  const { currentUser, loading, logout } = useAuth();
+  const { currentUser, loading, logout, pendingCounts, fetchPendingCounts } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
 
@@ -37,6 +37,14 @@ export function AppLayout({ children }: AppLayoutProps) {
       router.replace("/login");
     }
   }, [currentUser, loading, router]);
+
+  React.useEffect(() => {
+    if (currentUser) {
+      fetchPendingCounts(); // Fetch counts when user is available or path changes that might alter counts
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser, pathname]); // Re-fetch on pathname change as actions on pages can change counts
+
 
   if (loading) {
     return <div className="flex h-screen items-center justify-center"><p>Cargando S.A.R.A...</p></div>;
@@ -49,12 +57,14 @@ export function AppLayout({ children }: AppLayoutProps) {
   const isArrendador = currentUser.role === "Arrendador";
 
   const navItems = [
-    { href: "/dashboard", label: "Panel de Control", icon: LayoutDashboard },
-    ...(isArrendador ? [{ href: "/propiedades", label: "Propiedades", icon: Building2 }] : []),
-    { href: "/contratos", label: "Contratos", icon: FileText },
-    { href: "/pagos", label: "Pagos", icon: CreditCard },
-    { href: "/incidentes", label: "Incidentes", icon: ShieldAlert },
-    { href: "/evaluaciones", label: "Evaluaciones", icon: ClipboardCheck },
+    { href: "/dashboard", label: "Panel de Control", icon: LayoutDashboard, count: 0 },
+    ...(isArrendador 
+      ? [{ href: "/propiedades", label: "Propiedades", icon: Building2, count: 0 }] 
+      : []),
+    { href: "/contratos", label: "Contratos", icon: FileText, count: pendingCounts.contratos },
+    { href: "/pagos", label: "Pagos", icon: CreditCard, count: isArrendador ? pendingCounts.pagos : 0 },
+    { href: "/incidentes", label: "Incidentes", icon: ShieldAlert, count: pendingCounts.incidentes },
+    { href: "/evaluaciones", label: "Evaluaciones", icon: ClipboardCheck, count: !isArrendador ? pendingCounts.evaluaciones : 0 },
   ];
 
   return (
@@ -68,7 +78,7 @@ export function AppLayout({ children }: AppLayoutProps) {
         <SidebarContent>
           <SidebarMenu>
             {navItems.map((item) => (
-              <SidebarMenuItem key={item.label}>
+              <SidebarMenuItem key={item.label} badgeCount={item.count}>
                 <Link href={item.href} legacyBehavior passHref>
                   <SidebarMenuButton
                     isActive={pathname === item.href || (item.href !== "/dashboard" && pathname.startsWith(item.href))}
@@ -102,3 +112,5 @@ export function AppLayout({ children }: AppLayoutProps) {
     </SidebarProvider>
   );
 }
+
+    
