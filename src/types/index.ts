@@ -1,4 +1,5 @@
 
+
 export type UserRole = "Arrendador" | "Inquilino";
 
 export interface UserProfile {
@@ -213,4 +214,16 @@ export interface InitialPropertyState {
   tenantAgreed?: boolean; // True if tenant accepted, false if rejected
   tenantComments?: string; // If tenant rejected or had comments
   tenantAttachments?: FileAttachmentInfo[]; // Additional attachments from tenant
+}
+
+// For File Uploads
+export interface UploadedFile {
+  id: string; // Firestore document ID
+  userId: string; // UID of the user who uploaded
+  fileName: string; // Original name of the file
+  downloadURL: string; // URL from Firebase Storage
+  storagePath: string; // Path in Firebase Storage (e.g., uploads/userId/fileName)
+  contentType?: string; // MIME type of the file
+  size?: number; // Size of the file in bytes
+  uploadedAt: string; // ISO date string from Firestore Timestamp
 }

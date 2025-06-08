@@ -1,6 +1,7 @@
 import { initializeApp, getApp, getApps, FirebaseApp } from "firebase/app";
 import { getAuth, Auth } from "firebase/auth";
 import { getFirestore, Firestore } from "firebase/firestore";
+import { getStorage, FirebaseStorage } from "firebase/storage"; // Added
 
 // =====================================================================================
 // 🔥🔥🔥 CRITICAL FIREBASE CONFIGURATION REQUIRED 🔥🔥🔥
@@ -49,6 +50,7 @@ const firebaseConfig = {
 let app: FirebaseApp;
 let auth: Auth;
 let db: Firestore;
+let storage: FirebaseStorage; // Added
 
 if (typeof window !== 'undefined' && !getApps().length) {
   // IMPORTANT: If firebaseConfig above is not correctly filled with your
@@ -58,6 +60,7 @@ if (typeof window !== 'undefined' && !getApps().length) {
     app = initializeApp(firebaseConfig);
     auth = getAuth(app);
     db = getFirestore(app);
+    storage = getStorage(app); // Added
   } catch (error) {
     console.error("Firebase initialization error:", error);
     // Potentially display a user-friendly message or fallback
@@ -67,6 +70,7 @@ if (typeof window !== 'undefined' && !getApps().length) {
     app = getApp();
     auth = getAuth(app);
     db = getFirestore(app);
+    storage = getStorage(app); // Added
   } catch (error) {
     console.error("Firebase getApp error:", error);
      // This might happen if initializeApp failed previously or other issues.
@@ -77,4 +81,4 @@ if (typeof window !== 'undefined' && !getApps().length) {
 }
 
 
-export { app, auth, db };
+export { app, auth, db, storage }; // Added storage to exports
