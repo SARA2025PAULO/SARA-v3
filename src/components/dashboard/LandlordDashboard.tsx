@@ -1,13 +1,12 @@
-
 "use client";
 
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Building2, FileText, PlusCircle, Gavel } from "lucide-react"; 
-import type { Property, Contract } from "@/types"; 
+import { Building2, FileText, PlusCircle, Gavel } from "lucide-react";
+import type { Property, Contract } from "@/types";
 import Image from "next/image";
-import { AnnouncementsSection } from "./AnnouncementsSection"; 
+import { AnnouncementsSection } from "./AnnouncementsSection";
 
 // Mock data - replace with actual data fetching
 const mockProperties: Property[] = [
@@ -26,6 +25,7 @@ export function LandlordDashboard() {
 
   return (
     <div className="space-y-6">
+      <h2>Rol: Arrendador</h2> {/* Added H2 tag here */}
       <div className="grid gap-6 md:grid-cols-2">
         <Card>
           <CardHeader>
@@ -59,7 +59,7 @@ export function LandlordDashboard() {
             </Button>
           </CardContent>
         </Card>
-        
+
         <AnnouncementsSection />
       </div>
 
