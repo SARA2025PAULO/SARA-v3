@@ -1,7 +1,5 @@
-
 "use client";
 
-import Image from "next/image";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,11 +16,11 @@ export function PropertyCard({ property, onEdit, onViewDetails }: PropertyCardPr
   const getStatusVariant = (status: Property["status"]) => {
     switch (status) {
       case "Disponible":
-        return "bg-accent/80 hover:bg-accent text-accent-foreground"; // Using accent color for Disponible
+        return "bg-accent/80 hover:bg-accent text-accent-foreground";
       case "Arrendada":
-        return "bg-blue-500 text-white"; // Using a distinct blue for Arrendada
+        return "bg-blue-500 text-white";
       case "Mantenimiento":
-        return "bg-yellow-500 text-white"; // Using yellow for Mantenimiento
+        return "bg-yellow-500 text-white";
       default:
         return "bg-secondary text-secondary-foreground";
     }
@@ -30,21 +28,15 @@ export function PropertyCard({ property, onEdit, onViewDetails }: PropertyCardPr
 
   return (
     <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col">
-      <CardHeader className="p-0 relative">
-        <Image
-          src={property.imageUrl || "https://placehold.co/600x400.png"}
-          alt={property.address}
-          width={600}
-          height={400}
-          className="object-cover w-full h-48"
-          data-ai-hint="house apartment building"
-        />
+      <CardHeader className="p-4 bg-muted/30">
         <Badge className={`absolute top-2 right-2 text-xs ${getStatusVariant(property.status)}`}>
           {property.status}
         </Badge>
+        <CardTitle className="text-lg font-semibold mb-1 truncate font-headline">
+          {property.address}
+        </CardTitle>
       </CardHeader>
       <CardContent className="p-4 flex-grow">
-        <CardTitle className="text-lg font-semibold mb-1 truncate font-headline">{property.address}</CardTitle>
         <CardDescription className="text-sm text-muted-foreground h-10 overflow-hidden text-ellipsis">
           {property.description}
         </CardDescription>

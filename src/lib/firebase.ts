@@ -38,9 +38,9 @@ const firebaseConfig = {
   apiKey: "AIzaSyDnS-HE3g4djBAinSGeHwCEupOTY56iouA",
   authDomain: "sara3o.firebaseapp.com",
   projectId: "sara3o",
-  storageBucket: "sara3o.firebasestorage.app", // Corrected from your input, typically it's projectId.appspot.com or projectId.firebasestorage.app
+ storageBucket: "sara3o.firebasestorage.app",
   messagingSenderId: "59080776640",
-  appId: "1:59080776640:web:a430fc589f5fe211ef8625"
+  appId: "1:59080776640:web:e597f02bc9900fb3ef8625"
 };
 // =====================================================================================
 // END OF CRITICAL CONFIGURATION SECTION. ENSURE THE VALUES ABOVE ARE CORRECT.
