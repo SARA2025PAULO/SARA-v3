@@ -126,12 +126,15 @@ export default function ContratosPage() {
       if (tenantSnapshot.empty) {
         toast({ title: "Inquilino no Encontrado", description: `No se encontró un inquilino con el rol correcto para el correo: ${values.tenantEmail}`, variant: "destructive" });
         setIsSubmitting(false);
-        return;
       }
       const tenantDoc = tenantSnapshot.docs[0];
-      const tenantProfile = tenantDoc.data() as UserProfile;
-      const tenantUid = tenantDoc.id;
-
+      let tenantProfile: UserProfile | undefined = undefined;
+      let tenantUid: string | undefined = undefined;
+      
+      if (tenantDoc) { // Check if tenantDoc exists before accessing data
+        tenantProfile = tenantDoc.data() as UserProfile;
+        tenantUid = tenantDoc.id;
+      }
       const selectedProperty = landlordProperties.find(p => p.id === values.propertyId);
       if (!selectedProperty) {
           toast({ title: "Error", description: "Propiedad seleccionada no válida.", variant: "destructive" });
@@ -142,9 +145,9 @@ export default function ContratosPage() {
       const contractData: Omit<Contract, 'id' | 'createdAt' | 'updatedAt'> & { updatedAt: any } = {
         propertyId: values.propertyId,
         propertyName: selectedProperty.address,
-        tenantId: tenantUid,
+        tenantId: tenantUid, // Will be undefined if tenant not found
         tenantEmail: values.tenantEmail,
-        tenantName: tenantProfile.displayName || values.tenantName, 
+        tenantName: tenantProfile?.displayName || values.tenantName, // Use optional chaining
         landlordId: currentUser.uid,
         landlordName: currentUser.displayName,
         startDate: values.startDate.toISOString(),
