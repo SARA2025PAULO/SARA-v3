@@ -1,9 +1,10 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { zodResolver } from "@hookform/resolvers/zod"; 
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { signInWithEmailAndPassword } from "firebase/auth";
+import { sendPasswordResetEmail } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import {
@@ -15,7 +16,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useToast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast"; 
 import { useRouter } from "next/navigation";
 import { LogIn } from "lucide-react";
 
@@ -57,6 +58,33 @@ export function LoginForm() {
     }
   }
 
+ async function handlePasswordReset() {
+    const email = form.getValues("email");
+    if (!email) {
+      toast({
+        title: "Error",
+        description: "Por favor, ingresa tu correo electrónico para restablecer la contraseña.",
+        variant: "destructive",
+      });
+      return;
+    }
+    try {
+      await sendPasswordResetEmail(auth, email);
+      toast({
+        title: "Correo de Recuperación Enviado",
+        description: "Hemos enviado un correo a tu dirección con instrucciones para restablecer tu contraseña.",
+      });
+    } catch (error: any) {
+      console.error("Error sending password reset email:", error);
+      toast({
+        title: "Error al Enviar Correo de Recuperación",
+        description: error.message || "Ocurrió un error al intentar enviar el correo de recuperación.",
+        variant: "destructive",
+      });
+    }
+  }
+
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
@@ -86,6 +114,9 @@ export function LoginForm() {
             </FormItem>
           )}
         />
+        <Button type="button" variant="link" className="px-0" onClick={handlePasswordReset}>
+          ¿Olvidaste tu contraseña?
+        </Button>
         <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
           {form.formState.isSubmitting ? "Iniciando..." : <> <LogIn className="mr-2 h-4 w-4" /> Iniciar Sesión</>}
         </Button>
