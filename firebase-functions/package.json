@@ -1,0 +1,23 @@
+{
+  "name": "firebase-functions",
+  "scripts": {
+    "build": "./node_modules/.bin/tsc",
+    "shell": "npm run build && firebase functions:shell",
+    "start": "npm run shell",
+    "deploy": "firebase deploy --only functions",
+    "logs": "firebase functions:log"
+  },
+  "main": "lib/index.js",
+  "dependencies": {
+    "firebase-functions": "^5.0.0",
+    "firebase-admin": "^11.11.0",
+    "@sendgrid/mail": "^7.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0"
+  },
+  "private": true,
+  "engines": {
+    "node": "18"
+  }
+}

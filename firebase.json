@@ -12,5 +12,30 @@
         "destination": "/index.html"
       }
     ]
+  },
+  "functions": {
+    "source": "firebase-functions",
+    "runtime": "nodejs20",
+    "ignores": ["**/.eslintrc.json"],
+    "codebase": "default"
+  },
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "functions": [
+    {
+      "source": "firebase-functions",
+      "codebase": "default",
+      "runtime": "nodejs20",
+      "name": "sendContractInvitation",
+      "trigger": {
+        "firestore": {
+          "document": "contracts/{contractId}",
+          "event": "onWrite"
+        }
+      }
+    }
+  ]
   }
-}
+
