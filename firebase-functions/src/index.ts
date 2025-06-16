@@ -1,159 +1,126 @@
+// firebase-functions/src/index.ts
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
-import fetch from 'node-fetch'; // We will add this dependency
+import fetch from 'node-fetch';
+
+import { passwordRecovery } from './passwordRecovery';
 
 admin.initializeApp();
 
+// 0. Función de prueba mínima para aislar problemas de despliegue
+export const helloWorld = functions.https.onRequest((req, res): void => {
+  res.send('¡Hola Mundo!');
+});
 
-// HTTPS test function using SendGrid REST API
-export const testEmailRest = functions.https.onRequest(async (req, res) => {
-  const sendgridApiKey = functions.config().sendgrid.key;
-
+// 1. Función de prueba HTTP usando la API REST de SendGrid
+export const testEmailRest = functions.https.onRequest(async (req, res): Promise<void> => {
+  const sendgridApiKey = functions.config().sendgrid?.key;
   if (!sendgridApiKey) {
-    console.error("SendGrid API key not configured.");
-    return res.status(500).send("SendGrid API key not configured.");
+    console.error('SendGrid API key not configured.');
+    res.status(500).send('SendGrid API key not configured.');
+    return;
   }
 
   const msg = {
-    personalizations: [
-      {
-        to: [
-          {
-            email: "destinatario@ejemplo.com", // Change to your test recipient email
-          },
-        ],
-      },
-    ],
-    from: {
-      email: "notificaciones@sarachile.com", // Change to your verified SendGrid sender email
-    },
-    subject: "Prueba vía REST desde Firebase",
-    content: [
-      {
-        type: "text/plain",
-        value: "¡Hola desde REST API!",
-      },
-    ],
+    personalizations: [{ to: [{ email: 'destinatario@ejemplo.com' }] }],
+    from: { email: 'notificaciones@sarachile.com' },
+    subject: 'Prueba vía REST desde Firebase',
+    content: [{ type: 'text/plain', value: '¡Hola desde REST API!' }],
   };
 
   try {
-    console.log('SendGrid API Key (partial):', sendgridApiKey ? sendgridApiKey.substring(0, 5) + '...' : 'Not configured');
-    const response = await fetch("https://api.sendgrid.com/v3/mail/send", {
-      method: "POST",
+    console.log('SendGrid API Key (partial):', sendgridApiKey.substring(0, 5) + '...');
+    const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
+      method: 'POST',
       headers: {
-        "Authorization": `Bearer ${sendgridApiKey}`,
-        "Content-Type": "application/json",
+        Authorization: `Bearer ${sendgridApiKey}`,
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify(msg),
     });
-
     const responseBody = await response.text();
-    console.log(`SendGrid API Response (testEmailRest): Status - ${response.status}, Body - ${responseBody}`);
+    console.log(`Status - ${response.status}, Body - ${responseBody}`);
 
     if (response.ok) {
-      console.log("Correo REST enviado con éxito (testEmailRest)");
-      res.status(200).send("Correo REST enviado con éxito (testEmailRest)");
+      console.log('Correo REST enviado con éxito (testEmailRest)');
+      res.status(200).send('Correo REST enviado con éxito (testEmailRest)');
     } else {
- console.error(`Error enviando correo REST (testEmailRest): ${response.status} - ${responseBody}`);
+      console.error(`Error enviando correo REST: ${response.status} - ${responseBody}`);
+      res.status(500).send('Error enviando correo REST');
     }
   } catch (error: any) {
     console.error('Error in testEmailRest function:', error);
-    res.status(500).send('Error in testEmailRest function');
-
+    res.status(500).send('Error en testEmailRest');
   }
 });
 
-
-// Firestore trigger function using SendGrid REST API
+// 2. Función trigger de Firestore para invitaciones de contrato
 export const sendContractInvitation = functions.firestore
   .document('contracts/{contractId}')
-  .onCreate(async (snap, context) => {
-    const contratoData = snap.data();
-    const tenantEmail = contratoData.tenantEmail;
-    const tenantName = contratoData.tenantName;
-    const sendgridApiKey = functions.config().sendgrid.key;
-    const contractId = context.params.contractId;
+  .onCreate(async (snap, context): Promise<void> => {
+    const data = snap.data()!;
+    const tenantEmail = data.tenantEmail;
+    const tenantName = data.tenantName;
+    const sendgridApiKey = functions.config().sendgrid?.key;
+    const registrationUrl = 'https://sara-2-0.vercel.app/login';
 
-    // Define registration URL and HTML button
-    const registrationUrl = "https://sara-2-0.vercel.app/login";
-    const htmlButton = `
-  <p>Hola ${tenantName},</p>
-  <p>Has sido invitado a un nuevo contrato en SARA.
-     Haz clic en el botón de abajo para registrarte y ver los detalles:</p>
-
-  <table cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
-    <tr>
-      <td align="center" bgcolor="#4CAF50" style="border-radius:5px;">
-        <a
-          href="https://sara-2-0.vercel.app/login"
-          target="_blank"
-          style="
-            display: inline-block;
-            padding: 12px 24px;
-            font-size: 16px;
-            color: #ffffff;
-            text-decoration: none;
-            font-weight: bold;
-          "
-        >
-          Registrarse en SARA
-        </a>
-      </td>
-    </tr>
-  </table>
-
-  <p>Saludos,<br/>El equipo de SARA</p>
- `;
- console.log('Tenant Email:', tenantEmail);
- console.log('Tenant Name:', tenantName);
- console.log('SendGrid API Key is configured:', !!sendgridApiKey); // Log if the key exists
- console.log('Registration URL:', registrationUrl);
- console.log('HTML Button:', htmlButton);
     if (!tenantEmail || !tenantName || !sendgridApiKey) {
-      if (!tenantEmail || !tenantName) {
-      console.warn('Missing tenantEmail or tenantName in new contract document.');
-      }
-      if (!sendgridApiKey) {
-      console.error("SendGrid API key not configured for sendContractInvitation.");
-      }
- return null; // Exit if essential data or API key is missing
+      console.warn('Faltan tenantEmail, tenantName o SendGrid API key');
+      return;
     }
+
+    const htmlButton = `
+      <p>Hola ${tenantName},</p>
+      <p>Has sido invitado a un nuevo contrato en SARA. Haz clic en el botón de abajo para registrarte y ver los detalles:</p>
+      <table cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
+        <tr>
+          <td align="center" bgcolor="#4CAF50" style="border-radius:5px;">
+            <a href="${registrationUrl}" target="_blank" style="
+              display: inline-block;
+              padding: 12px 24px;
+              font-size: 16px;
+              color: #ffffff;
+              text-decoration: none;
+              font-weight: bold;
+            ">Registrarse en SARA</a>
+          </td>
+        </tr>
+      </table>
+      <p>Saludos,<br/>El equipo de SARA</p>
+    `;
+
     const msg = {
       personalizations: [{ to: [{ email: tenantEmail }] }],
-      from: { email: 'notificaciones@sarachile.com' }, // Replace with your verified SendGrid sender email
+      from: { email: 'notificaciones@sarachile.com' },
       subject: 'Has sido invitado a un contrato en SARA',
- content: [
-        { type: 'text/plain', value: `Hola ${tenantName}, visita: https://sara-2-0.vercel.app/login` },
-        { type: 'text/html',  value: htmlButton }
-      ]
+      content: [
+        { type: 'text/plain', value: `Hola ${tenantName}, visita: ${registrationUrl}` },
+        { type: 'text/html', value: htmlButton },
+      ],
     };
 
- console.log('SendGrid API Key (partial):', sendgridApiKey ? sendgridApiKey.substring(0, 5) + '...' : 'Not configured');
     try {
- console.log('Message object:', JSON.stringify(msg, null, 2));
+      console.log('SendGrid API Key (partial):', sendgridApiKey.substring(0, 5) + '...');
+      console.log('Mensaje:', JSON.stringify(msg, null, 2));
+
       const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
- method: 'POST',
- headers: {
- 'Authorization': `Bearer ${sendgridApiKey}`,
- 'Content-Type': 'application/json',
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${sendgridApiKey}`,
+          'Content-Type': 'application/json',
         },
- body: JSON.stringify(msg),
+        body: JSON.stringify(msg),
       });
-
       const responseBody = await response.text();
-      console.log(`SendGrid API Response (sendContractInvitation): Status - ${response.status}, Body - ${responseBody}`);
- if (response.ok) {
- console.log(`Invitation email sent to ${tenantEmail} for contract ${contractId}`);
- } else {
- console.error(`Error sending invitation email to ${tenantEmail} (sendContractInvitation): ${response.status} - ${responseBody}`);
- // Optionally re-throw the error or handle it based on your needs
- // throw new functions.https.HttpsError('internal', 'Failed to send invitation email', responseBody);
- }
+      console.log(`Status - ${response.status}, Body - ${responseBody}`);
 
- return null; // Indicate that the function completed successfully
+      if (!response.ok) {
+        console.error(`Error invitación a ${tenantEmail}: ${response.status} - ${responseBody}`);
+      }
     } catch (error: any) {
- console.error(`Error in sendContractInvitation function for contract ${contractId}:`, error);
- // Optionally re-throw the error or handle it based on your needs
- // throw new functions.https.HttpsError('internal', 'Error in sendContractInvitation function', error);
+      console.error(`Error en sendContractInvitation ${context.params.contractId}:`, error);
     }
   });
+
+// 3. Función HTTPS para recuperación de contraseña (en su propio archivo)
+export { passwordRecovery };
