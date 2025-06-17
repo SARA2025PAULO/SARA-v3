@@ -34,6 +34,7 @@ export default function ContratosPage() {
   
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [landlordProperties, setLandlordProperties] = useState<Property[]>([]); 
+  const [availablePropertiesCount, setAvailablePropertiesCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -50,10 +51,11 @@ export default function ContratosPage() {
   const fetchLandlordProperties = useCallback(async () => {
     if (currentUser && currentUser.role === "Arrendador" && db) {
       try {
-        const propsRef = collection(db, "users", currentUser.uid, "properties");
-        const qProps = query(propsRef, where("status", "in", ["Disponible", "Arrendada"])); 
+        const qProps = query(collection(db, "propiedades"), where("ownerId", "==", currentUser.uid), where("status", "in", ["Disponible", "Arrendada"]));
         const propsSnapshot = await getDocs(qProps);
         const fetchedProps = propsSnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Property));
+        const availableCount = fetchedProps.filter(p => p.status === "Disponible").length;
+        setAvailablePropertiesCount(availableCount);
         setLandlordProperties(fetchedProps);
       } catch (error) {
         console.error("Error fetching landlord properties:", error);
@@ -119,6 +121,7 @@ export default function ContratosPage() {
     setIsSubmitting(true);
 
     try {
+      console.log("handleSaveContract called with values:", values);
       const usersRef = collection(db, "users");
       const tenantQuery = query(usersRef, where("email", "==", values.tenantEmail), where("role", "==", "Inquilino"), limit(1));
       const tenantSnapshot = await getDocs(tenantQuery);
@@ -138,6 +141,7 @@ export default function ContratosPage() {
       const selectedProperty = landlordProperties.find(p => p.id === values.propertyId);
       if (!selectedProperty) {
           toast({ title: "Error", description: "Propiedad seleccionada no válida.", variant: "destructive" });
+          console.error("Selected property not found for propertyId:", values.propertyId);
           setIsSubmitting(false);
           return;
       }
@@ -164,6 +168,7 @@ export default function ContratosPage() {
       const cleanedContractData = Object.fromEntries(
         Object.entries(contractData).filter(([_, v]) => v !== undefined)
       );
+      console.log("Cleaned contract data before saving:", cleanedContractData);
 
 
       if (isEditingFlag && originalContractId) {
@@ -172,13 +177,16 @@ export default function ContratosPage() {
         toast({ title: "Contrato Actualizado", description: `El contrato para ${selectedProperty.address} ha sido guardado.` });
       } else {
         const finalContractData = { ...cleanedContractData, createdAt: serverTimestamp() };
-        await addDoc(collection(db, "contracts"), finalContractData);
+        console.log("Final contract data to be added:", finalContractData);
+        // Save the contract to the root 'contracts' collection
+        const docRef = await addDoc(collection(db, "contracts"), finalContractData);
+        console.log("Contract successfully added with ID:", docRef.id);
         toast({ title: "Contrato Creado", description: `Nuevo contrato para ${selectedProperty.address} está ${finalContractData.status}.` });
       }
       
       fetchContracts(); 
       setIsContractFormOpen(false);
-      setEditingContract(null);
+      setEditingContract(null); 
 
     } catch (error) {
       console.error("Error saving contract:", error);
@@ -245,11 +253,11 @@ export default function ContratosPage() {
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
         <h1 className="text-3xl font-bold font-headline">Gestión de Contratos</h1>
         {currentUser?.role === "Arrendador" && (
-          <Button onClick={() => openContractFormDialog()} size="lg" disabled={isSubmitting || landlordProperties.length === 0}>
+          <Button onClick={() => openContractFormDialog()} size="lg" disabled={isSubmitting || availablePropertiesCount === 0}>
             <PlusCircle className="mr-2 h-5 w-5" /> Crear Nuevo Contrato
           </Button>
         )}
-         {currentUser?.role === "Arrendador" && landlordProperties.length === 0 && !isLoading && (
+         {currentUser?.role === "Arrendador" && availablePropertiesCount === 0 && !isLoading && (
             <p className="text-sm text-muted-foreground">Añade propiedades disponibles para poder crear contratos.</p>
         )}
       </div>
@@ -282,8 +290,8 @@ export default function ContratosPage() {
           <h3 className="text-xl font-semibold">No se encontraron contratos</h3>
           <p className="text-muted-foreground">
             {searchTerm || statusFilter !== "todos" ? "Intenta con otros filtros o " : (currentUser?.role === "Arrendador" ? "Comienza por " : "")}
-            {currentUser?.role === "Arrendador" && 
-              <Button variant="link" className="p-0 h-auto" onClick={() => openContractFormDialog()} disabled={landlordProperties.length === 0}>crear un nuevo contrato</Button>
+            {currentUser?.role === "Arrendador" && availablePropertiesCount > 0 &&
+              <Button variant="link" className="p-0 h-auto" onClick={() => openContractFormDialog()}>crear un nuevo contrato</Button>
             }
             {currentUser?.role !== "Arrendador" && "No tienes contratos que coincidan con los filtros."}
           </p>

@@ -4,6 +4,7 @@ import * as admin from 'firebase-admin';
 import fetch from 'node-fetch';
 
 import { passwordRecovery } from './passwordRecovery';
+import { uploadProperties } from './uploadProperties'; // Import the uploadProperties function
 
 admin.initializeApp();
 
@@ -124,3 +125,6 @@ export const sendContractInvitation = functions.firestore
 
 // 3. Función HTTPS para recuperación de contraseña (en su propio archivo)
 export { passwordRecovery };
+
+// 4. Función HTTPS para carga masiva de propiedades (en su propio archivo)
+export { uploadProperties }; // Export the uploadProperties function

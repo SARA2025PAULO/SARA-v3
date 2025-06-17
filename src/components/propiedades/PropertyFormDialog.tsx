@@ -35,16 +35,74 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
-// Schema without imageUrl
+// List of Chilean regions
+const chileanRegions = [
+  "Arica y Parinacota",
+  "Tarapacá",
+  "Antofagasta",
+  "Atacama",
+  "Coquimbo",
+  "Valparaíso",
+  "Metropolitana de Santiago",
+  "Libertador General Bernardo O'Higgins",
+  "Maule",
+  "Ñuble",
+  "Biobío",
+  "La Araucanía",
+  "Los Ríos",
+  "Los Lagos",
+  "Aysén del General Carlos Ibáñez del Campo",
+  "Magallanes y de la Antártica Chilena",
+];
+
+// List of communes in Santiago
+const santiagoCommunes = [
+  "Cerrillos",
+  "Cerro Navia",
+  "Conchalí",
+  "El Bosque",
+  "Estación Central",
+  "Huechuraba",
+  "Independencia",
+  "La Cisterna",
+  "La Florida",
+  "La Granja",
+  "La Pintana",
+  "La Reina",
+  "Las Condes",
+  "Lo Barnechea",
+  "Lo Espejo",
+  "Lo Prado",
+  "Macul",
+  "Maipú",
+  "Ñuñoa",
+  "Pedro Aguirre Cerda",
+  "Peñalolén",
+  "Providencia",
+  "Pudahuel",
+  "Quilicura",
+  "Quinta Normal",
+  "Recoleta",
+  "Renca",
+  "San Joaquín",
+  "San Miguel",
+  "San Ramón",
+  "Santiago",
+  "Vitacura",
+];
+
+// Schema for property form validation
 export const propertyFormSchema = z.object({
+  region: z.string().min(1, { message: "Debes seleccionar una región." }),
+  comuna: z.string().optional(), // Comuna is optional initially, required conditionally if region is Metropolitana
   address: z.string().min(5, { message: "La dirección debe tener al menos 5 caracteres." }),
-  description: z.string().min(10, { message: "La descripción debe tener al menos 10 caracteres." }),
   status: z.enum(["Disponible", "Arrendada", "Mantenimiento"], { required_error: "Debes seleccionar un estado." }),
+  type: z.enum(["Casa", "Departamento"], { required_error: "Debes seleccionar un tipo de propiedad." }),
   price: z.coerce.number().positive({ message: "El precio debe ser un número positivo." }).optional().or(z.literal('')),
   area: z.coerce.number().positive({ message: "El área debe ser un número positivo." }).optional().or(z.literal('')),
   bedrooms: z.coerce.number().int().min(0, { message: "Número de habitaciones no puede ser negativo." }).optional().or(z.literal('')),
   bathrooms: z.coerce.number().int().min(0, { message: "Número de baños no puede ser negativo." }).optional().or(z.literal('')),
-  potentialTenantEmail: z.string().email({ message: "Por favor ingresa un correo válido." }).optional().or(z.literal('')),
+  description: z.string().min(10, { message: "La descripción debe tener al menos 10 caracteres." }),
 });
 
 export type PropertyFormValues = z.infer<typeof propertyFormSchema>;
@@ -64,40 +122,49 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
   const form = useForm<PropertyFormValues>({
     resolver: zodResolver(propertyFormSchema),
     defaultValues: {
+      region: "",
+      comuna: "",
       address: "",
-      description: "",
       status: "Disponible",
+      type: "",
       price: undefined,
       area: undefined,
       bedrooms: undefined,
       bathrooms: undefined,
-      potentialTenantEmail: "",
+      description: "",
     },
   });
 
+  const selectedRegion = form.watch("region");
+
   useEffect(() => {
     if (!open) return;
+    // Reset form with property data if editing, otherwise with default values
     form.reset(
       property
         ? {
+            region: property.region || "",
+            comuna: property.comuna || "",
             address: property.address,
-            description: property.description,
             status: property.status,
+            type: property.type || "",
             price: property.price ?? undefined,
             area: property.area ?? undefined,
             bedrooms: property.bedrooms ?? undefined,
             bathrooms: property.bathrooms ?? undefined,
-            potentialTenantEmail: property.potentialTenantEmail ?? "",
+            description: property.description,
           }
         : {
+            region: "",
+            comuna: "",
             address: "",
-            description: "",
             status: "Disponible",
+            type: "",
             price: undefined,
             area: undefined,
             bedrooms: undefined,
             bathrooms: undefined,
-            potentialTenantEmail: "",
+            description: "",
           }
     );
   }, [open, property, form]);
@@ -111,16 +178,30 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
       });
       return;
     }
+
+    // Conditional validation for comuna if region is Metropolitana
+    if (selectedRegion === "Metropolitana de Santiago" && !values.comuna) {
+      form.setError("comuna", {
+        type: "manual",
+        message: "Debes seleccionar una comuna para la Región Metropolitana de Santiago.",
+      });
+      return;
+    }
+
+
     const cleaned: PropertyFormValues = {
+      region: values.region,
+      comuna: values.comuna === '' ? undefined : values.comuna, // Store empty string as undefined in Firestore
       address: values.address,
-      description: values.description,
       status: values.status,
+      type: values.type,
       price: values.price === '' ? undefined : values.price,
       area: values.area === '' ? undefined : values.area,
       bedrooms: values.bedrooms === '' ? undefined : values.bedrooms,
       bathrooms: values.bathrooms === '' ? undefined : values.bathrooms,
-      potentialTenantEmail: values.potentialTenantEmail === '' ? undefined : values.potentialTenantEmail,
+      description: values.description,
     };
+
     onSave(cleaned, isEditing, isEditing && property ? property.id : undefined);
   }
 
@@ -135,6 +216,54 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1 pr-4">
+
+            {/* Campo Región */}
+            <FormField
+              control={form.control}
+              name="region"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Región</FormLabel>
+                  <FormControl>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <SelectTrigger><SelectValue placeholder="Selecciona una región" /></SelectTrigger>
+                      <SelectContent>
+                        {chileanRegions.map((region) => (
+                          <SelectItem key={region} value={region}>{region}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Campo Comuna (condicional) */}
+            {selectedRegion === "Metropolitana de Santiago" && (
+              <FormField
+                control={form.control}
+                name="comuna"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Comuna</FormLabel>
+                    <FormControl>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <SelectTrigger><SelectValue placeholder="Selecciona una comuna" /></SelectTrigger>
+                        <SelectContent>
+                          {santiagoCommunes.map((comuna) => (
+                            <SelectItem key={comuna} value={comuna}>{comuna}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
+            {/* Campo Dirección */}
             <FormField
               control={form.control}
               name="address"
@@ -148,19 +277,8 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
                 </FormItem>
               )}
             />
-            <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Descripción</FormLabel>
-                  <FormControl>
-                    <Textarea placeholder="Ej: Casa espaciosa con 3 habitaciones, jardín y garage." {...field} rows={3} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+
+            {/* Campo Estado */}
             <FormField
               control={form.control}
               name="status"
@@ -181,6 +299,29 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
                 </FormItem>
               )}
             />
+
+            {/* Campo Tipo de Propiedad */}
+             <FormField
+              control={form.control}
+              name="type"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tipo de Propiedad</FormLabel>
+                  <FormControl>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <SelectTrigger><SelectValue placeholder="Selecciona un tipo" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Casa">Casa</SelectItem>
+                        <SelectItem value="Departamento">Departamento</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            {/* Campos de detalles (Precio, Área, Habitaciones, Baños) en columnas */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -237,19 +378,22 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
                 )}
               />
             </div>
+
+            {/* Campo Descripción (al final) */}
             <FormField
               control={form.control}
-              name="potentialTenantEmail"
+              name="description"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Correo Electrónico del Potencial Inquilino (Opcional)</FormLabel>
+                  <FormLabel>Descripción</FormLabel>
                   <FormControl>
-                    <Input type="email" placeholder="inquilino@ejemplo.com" {...field} />
+                    <Textarea placeholder="Ej: Casa espaciosa con 3 habitaciones, jardín y garage." {...field} rows={3} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
             <DialogFooter className="pt-4">
               <DialogClose asChild>
                 <Button type="button" variant="outline">Cancelar</Button>

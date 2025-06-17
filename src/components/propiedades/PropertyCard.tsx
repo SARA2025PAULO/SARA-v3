@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { Property } from "@/types";
-import { Edit3, Eye, MapPin, DollarSign, BedDouble, Bath, Ruler } from "lucide-react";
+import { Edit3, Eye, DollarSign, BedDouble, Bath, Ruler } from "lucide-react";
 
 interface PropertyCardProps {
   property: Property;
@@ -13,7 +13,7 @@ interface PropertyCardProps {
 }
 
 export function PropertyCard({ property, onEdit, onViewDetails }: PropertyCardProps) {
-  const getStatusVariant = (status: Property["status"]) => {
+  const getStatusVariant = (status: string | undefined) => {
     switch (status) {
       case "Disponible":
         return "bg-accent/80 hover:bg-accent text-accent-foreground";
@@ -29,7 +29,7 @@ export function PropertyCard({ property, onEdit, onViewDetails }: PropertyCardPr
   return (
     <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col">
       <CardHeader className="p-4 bg-muted/30">
-        <Badge className={`absolute top-2 right-2 text-xs ${getStatusVariant(property.status)}`}>
+        <Badge className={`absolute top-2 right-2 text-xs z-10 visible ${getStatusVariant(property.status)}`}>
           {property.status}
         </Badge>
         <CardTitle className="text-lg font-semibold mb-1 truncate font-headline">
@@ -73,7 +73,7 @@ export function PropertyCard({ property, onEdit, onViewDetails }: PropertyCardPr
         <Button variant="outline" size="sm" onClick={() => onEdit(property)}>
           <Edit3 className="h-4 w-4 mr-1" /> Editar
         </Button>
-        <Button variant="default" size="sm" onClick={() => onViewDetails(property)}>
+        <Button variant="default" size="sm" onClick={() => onViewDetails(property)}> {/* Use default variant for primary action */}
           <Eye className="h-4 w-4 mr-1" /> Ver Detalles
         </Button>
       </CardFooter>

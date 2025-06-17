@@ -44,7 +44,7 @@ export default function PropiedadesPage() {
       if (currentUser && currentUser.role === "Arrendador" && db) {
         setIsLoading(true);
         try {
-          const propertiesCollectionRef = collection(db, "users", currentUser.uid, "properties");
+          const propertiesCollectionRef = collection(db, "propiedades");
           const q = query(propertiesCollectionRef, orderBy("createdAt", "desc")); 
           const querySnapshot = await getDocs(q);
           const fetchedProperties: Property[] = querySnapshot.docs.map(docSnap => {
@@ -112,7 +112,7 @@ export default function PropiedadesPage() {
       ) as any; // Cast to any or a more specific type if needed for Firestore SDK
 
       if (isEditing && originalPropertyId) {
-        const propertyDocRef = doc(db, "users", currentUser.uid, "properties", originalPropertyId);
+        const propertyDocRef = doc(db, "propiedades", originalPropertyId);
         const updatedPropertyData = {
           ...cleanedDataForFirestore,
           updatedAt: serverTimestamp(),
@@ -127,7 +127,7 @@ export default function PropiedadesPage() {
         toast({ title: "Propiedad Actualizada", description: `Los detalles de "${values.address}" se han guardado.` });
 
       } else { 
-        const propertiesCollectionRef = collection(db, "users", currentUser.uid, "properties");
+        const propertiesCollectionRef = collection(db, "propiedades");
         const newPropertyData = {
           ...cleanedDataForFirestore,
           createdAt: serverTimestamp(),
@@ -181,11 +181,13 @@ export default function PropiedadesPage() {
     });
   };
 
-  const filteredProperties = properties.filter(property =>
-    property.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (property.description && property.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (property.potentialTenantEmail && property.potentialTenantEmail.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredProperties = searchTerm === ""
+    ? properties
+    : properties.filter(property =>
+        property.address.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (property.description && property.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (property.potentialTenantEmail && property.potentialTenantEmail.toLowerCase().includes(searchTerm.toLowerCase()))
+      );
 
   if (isLoading && properties.length === 0) { 
     return <div className="p-4">Cargando propiedades...</div>;
@@ -242,12 +244,18 @@ export default function PropiedadesPage() {
                 />
              ) : (
                 <Card key={property.id} className="flex flex-col md:flex-row overflow-hidden shadow-md hover:shadow-lg transition-shadow">
+ {console.log(property.status)}
                     <img src={property.imageUrl || "https://placehold.co/200x150.png"} alt={property.address} className="w-full md:w-48 h-48 md:h-auto object-cover" data-ai-hint="property building" />
                     <div className="p-4 flex flex-col flex-grow">
                         <CardTitle className="text-lg font-semibold mb-1 font-headline">{property.address}</CardTitle>
-                        <Badge variant="secondary" className={`w-fit text-xs mb-2 ${property.status === "Disponible" ? "bg-accent text-accent-foreground" : property.status === "Arrendada" ? "bg-blue-200 text-blue-800" : "bg-yellow-200 text-yellow-800"}`}>
-                            {property.status}
-                        </Badge>
+                       {/* Simple div for status in list view */}
+                       <div className={`w-fit text-xs mb-2 px-2 py-0.5 rounded-full 
+                           ${property.status === "Disponible" ? "bg-accent text-accent-foreground" 
+                           : property.status === "Arrendada" ? "bg-blue-200 text-blue-800" 
+                           : "bg-yellow-200 text-yellow-800"}
+                       `}> {/* Removed the misplaced closing Badge tag */}
+                             {property.status}
+                        </div>
                         <CardDescription className="text-sm text-muted-foreground mb-1 flex-grow">{property.description ? property.description.substring(0,100) + (property.description.length > 100 ? '...' : '') : ''}</CardDescription>
                         {property.potentialTenantEmail && <p className="text-xs text-primary/80 mb-2">Potencial Inquilino: {property.potentialTenantEmail}</p>}
                          <div className="text-sm text-primary font-medium mb-2">${property.price?.toLocaleString('es-CL') || 'N/A'}/mes</div>
@@ -261,7 +269,6 @@ export default function PropiedadesPage() {
           ))}
         </div>
       )}
-
       <PropertyFormDialog
         property={editingProperty}
         open={isFormOpen}

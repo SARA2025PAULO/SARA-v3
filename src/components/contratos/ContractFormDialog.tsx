@@ -28,7 +28,7 @@ import { db } from "@/lib/firebase"; // Assuming you have firebase initialized a
 // Define el esquema de validación para el formulario
 const contractFormSchema = z.object({
   propertyId: z.string().min(1, { message: "Selecciona una propiedad." }),
-  tenantEmail: z.string().email({ message: "Ingresa un correo electrónico válido." }),
+  tenantEmail: z.string().email({ message: "Ingresa un correo electrónico válido." }).optional(),
   tenantName: z.string().min(1, { message: "Ingresa el nombre completo del inquilino." }), // Added validation for tenantName
   tenantRut: z.string().min(1, { message: "Ingresa el RUT del inquilino." }), // Added validation for tenantRut
   startDate: z.date({
