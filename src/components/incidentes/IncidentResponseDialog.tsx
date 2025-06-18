@@ -1,97 +1,118 @@
-
 "use client";
 
+import React, { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
 } from "@/components/ui/dialog";
 import {
-  Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription as UiFormDescription
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Paperclip, MessageSquare } from "lucide-react";
 import type { Incident, UserRole } from "@/types";
-import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 const incidentResponseFormSchema = z.object({
-  responseText: z.string().min(10, { message: "Tu respuesta debe tener al menos 10 caracteres." }),
-  responseAttachment: z.custom<FileList>((val) => val instanceof FileList, "Se esperaba un archivo").optional(),
+  responseText: z.string().min(10),
+  responseAttachment: z
+    .custom<FileList>((v) => v instanceof FileList)
+    .optional(),
 });
 
-export type IncidentResponseFormValues = z.infer<typeof incidentResponseFormSchema>;
+export type IncidentResponseFormValues = z.infer<
+  typeof incidentResponseFormSchema
+>;
 
 interface IncidentResponseDialogProps {
   incident: Incident | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (incidentId: string, data: IncidentResponseFormValues) => Promise<void>; 
-  currentUserRole: UserRole | null; // Added to understand context for display
+  onSave: (incidentId: string, data: IncidentResponseFormValues) => Promise<void>;
+  currentUserRole: UserRole | null;
 }
 
-export function IncidentResponseDialog({ incident, open, onOpenChange, onSave, currentUserRole }: IncidentResponseDialogProps) {
+export function IncidentResponseDialog({
+  incident,
+  open,
+  onOpenChange,
+  onSave,
+  currentUserRole,
+}: IncidentResponseDialogProps) {
   const { toast } = useToast();
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null);
 
   const form = useForm<IncidentResponseFormValues>({
     resolver: zodResolver(incidentResponseFormSchema),
-    defaultValues: {
-      responseText: "",
-      responseAttachment: undefined,
-    },
+    defaultValues: { responseText: "", responseAttachment: undefined },
   });
 
   async function onSubmit(values: IncidentResponseFormValues) {
     if (!currentUserRole || !incident) {
-      toast({ title: "Error de Permiso", description: "Acción no permitida.", variant: "destructive" });
+      toast({ title: "Error", description: "No permitido.", variant: "destructive" });
       return;
     }
-    await onSave(incident.id, values);
-    form.reset({ responseText: "", responseAttachment: undefined });
+
+    let attachmentUrl: string | undefined;
+    if (values.responseAttachment?.length) {
+      const file = values.responseAttachment[0];
+      const storage = getStorage();
+      const storageRef = ref(storage, `incident_attachments/${incident.id}/${file.name}`);
+      try {
+        const snap = await uploadBytes(storageRef, file);
+        attachmentUrl = await getDownloadURL(snap.ref);
+      } catch (error) {
+        console.error("Error uploading response attachment:", error);
+        toast({ title: "Error al adjuntar respuesta", description: "No se pudo subir el archivo adjunto.", variant: "destructive" });
+        return; // Stop submission if file upload fails
+      }
+    }
+
+    await onSave(incident.id, { ...values, responseAttachment: attachmentUrl as any });
+    form.reset();
+    setSelectedFileName(null);
+    onOpenChange(false);
   }
 
   if (!incident) return null;
 
-  const creatorIsLandlord = incident.createdBy === incident.landlordId;
-  const creatorName = creatorIsLandlord ? (incident.landlordName || "Arrendador") : (incident.tenantName || "Inquilino");
-
-
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => {
-      onOpenChange(isOpen);
-      if (!isOpen) {
-        form.reset({ responseText: "", responseAttachment: undefined });
-      }
-    }}>
-      <DialogContent className="sm:max-w-lg">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle className="flex items-center">
-            <MessageSquare className="h-5 w-5 mr-2 text-primary" /> Responder al Incidente
+          <DialogTitle>
+            <MessageSquare /> Responder Incidente
           </DialogTitle>
           <DialogDescription>
-            Incidente sobre: {incident.propertyName} (Tipo: {incident.type})
+            Incidente sobre {incident.propertyName}
           </DialogDescription>
         </DialogHeader>
-        <div className="py-2 px-1 space-y-2 max-h-[30vh] overflow-y-auto border rounded-md bg-muted/50">
-            <p className="text-sm font-semibold">Descripción Inicial (de {creatorName}):</p>
-            <p className="text-sm whitespace-pre-wrap">{incident.description}</p>
-            {incident.initialAttachmentUrl && (
-                <p className="text-sm flex items-center"><Paperclip className="h-4 w-4 mr-1"/> Adjunto del Creador: {incident.initialAttachmentUrl} (solo nombre)</p>
-            )}
-        </div>
+
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1 pr-4">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
               name="responseText"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Tu Respuesta/Comentario</FormLabel>
+                  <FormLabel>Respuesta</FormLabel>
                   <FormControl>
-                    <Textarea placeholder="Escribe tu respuesta o comentario aquí..." {...field} rows={4}/>
+                    <Textarea {...field} rows={4} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -100,29 +121,35 @@ export function IncidentResponseDialog({ incident, open, onOpenChange, onSave, c
             <FormField
               control={form.control}
               name="responseAttachment"
-              render={({ field: { onChange, value, ...rest } }) => ( 
+              render={({ field }) => (
                 <FormItem>
                   <FormLabel className="flex items-center">
                     <Paperclip className="h-4 w-4 mr-2 text-muted-foreground" />
-                    Adjuntar Archivo (Opcional)
+                    {selectedFileName
+                      ? `Adjunto: ${selectedFileName}`
+                      : "Adjuntar archivo (opcional)"}
                   </FormLabel>
                   <FormControl>
-                    <Input 
-                      type="file" 
+                    <input
+                      type="file"
                       className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-                      onChange={(e) => onChange(e.target.files)} 
-                      {...rest} 
+                      onChange={(e) => {
+                        const files = e.target.files;
+                        setSelectedFileName(files?.[0]?.name ?? null);
+                        field.onChange(files || undefined);
+                      }}
                     />
                   </FormControl>
-                  <UiFormDescription>Puedes adjuntar imágenes o PDF como respaldo.</UiFormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
-            <DialogFooter className="pt-4">
-              <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
+            <DialogFooter>
+              <DialogClose asChild>
+                <Button variant="outline">Cancelar</Button>
+              </DialogClose>
               <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? "Enviando..." : "Enviar Respuesta"}
+                {form.formState.isSubmitting ? "Enviando..." : "Enviar"}
               </Button>
             </DialogFooter>
           </form>

@@ -78,6 +78,13 @@ export interface Payment {
   isOverdue?: boolean; // True if paymentDate's day > contract.paymentDay
 }
 
+export interface IncidentResponse {
+  responseText: string;
+  responseAttachmentUrl?: string;
+  respondedAt: string; // ISO date string
+  respondedBy: string; // UID of the user who responded
+}
+
 export type IncidentType = "pago" | "cuidado de la propiedad" | "ruidos molestos" | "reparaciones necesarias" | "incumplimiento de contrato" | "otros";
 export type IncidentStatus = "pendiente" | "respondido" | "cerrado";
 
@@ -99,12 +106,8 @@ export interface Incident {
   initialAttachmentUrl?: string; 
   createdAt: string; 
   createdBy: string; 
-  
-  // Response
-  responseText?: string; 
-  responseAttachmentUrl?: string; 
-  respondedAt?: string; 
-  respondedBy?: string; 
+
+  responses: IncidentResponse[];
   
   // Closure
   closedAt?: string;

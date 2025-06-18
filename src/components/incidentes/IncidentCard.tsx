@@ -1,22 +1,21 @@
-
 "use client";
 
+import React from "react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import type { Incident, UserProfile, IncidentStatus } from "@/types"; // UserProfile for currentUser
-import { AlertTriangle, MessageSquare, CheckCircle2, Eye, CalendarDays, UserCircle, Paperclip } from "lucide-react";
+import type { Incident, UserProfile, IncidentStatus } from "@/types";
+import { AlertTriangle, MessageSquare, CheckCircle2, CalendarDays, Paperclip } from "lucide-react";
 
 interface IncidentCardProps {
   incident: Incident;
-  currentUser: UserProfile | null; // Pass current user to determine actions and display
+  currentUser: UserProfile | null;
   onRespond?: (incident: Incident) => void;
   onClose?: (incidentId: string) => void;
-  isProcessing?: boolean; 
+  isProcessing?: boolean;
 }
 
 export function IncidentCard({ incident, currentUser, onRespond, onClose, isProcessing }: IncidentCardProps) {
-  
   const getStatusVariant = (status: IncidentStatus) => {
     switch (status) {
       case "pendiente":
@@ -32,20 +31,17 @@ export function IncidentCard({ incident, currentUser, onRespond, onClose, isProc
 
   const formatDate = (dateString: string | undefined) => {
     if (!dateString) return 'N/A';
-    return new Date(dateString).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-  }
+    return new Date(dateString).toLocaleDateString('es-CL', {
+      day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit'
+    });
+  };
 
   const creatorIsLandlord = incident.createdBy === incident.landlordId;
   const creatorName = creatorIsLandlord ? (incident.landlordName || "Arrendador") : (incident.tenantName || "Inquilino");
 
-  const responderName = incident.respondedBy 
-    ? (incident.respondedBy === incident.landlordId ? (incident.landlordName || "Arrendador") : (incident.tenantName || "Inquilino")) 
-    : "N/A";
-  
   const closerName = incident.closedBy
     ? (incident.closedBy === incident.landlordId ? (incident.landlordName || "Arrendador") : (incident.tenantName || "Inquilino"))
     : "N/A";
-
 
   return (
     <Card className="shadow-md hover:shadow-lg transition-shadow duration-300 flex flex-col">
@@ -55,48 +51,98 @@ export function IncidentCard({ incident, currentUser, onRespond, onClose, isProc
             <AlertTriangle className="h-5 w-5 mr-2 text-destructive" />
             Incidente: {incident.type.charAt(0).toUpperCase() + incident.type.slice(1)}
           </CardTitle>
-          <Badge className={`${getStatusVariant(incident.status)} text-xs`}>{incident.status.charAt(0).toUpperCase() + incident.status.slice(1)}</Badge>
+          <Badge className={`${getStatusVariant(incident.status)} text-xs`}>
+            {incident.status.charAt(0).toUpperCase() + incident.status.slice(1)}
+          </Badge>
         </div>
         <CardDescription className="text-sm text-muted-foreground pt-1">
-           Propiedad: {incident.propertyName}
+          Propiedad: {incident.propertyName}
         </CardDescription>
       </CardHeader>
+
       <CardContent className="space-y-2 text-sm flex-grow">
         <div className="flex items-center">
           <CalendarDays className="h-4 w-4 mr-2 text-primary flex-shrink-0" />
           <span>Creado: {formatDate(incident.createdAt)} por {creatorName}</span>
         </div>
         <p className="font-semibold">Descripción Inicial:</p>
-        <p className="text-muted-foreground bg-muted/30 p-2 rounded-md whitespace-pre-wrap text-xs max-h-24 overflow-y-auto">{incident.description}</p>
+        <p className="text-muted-foreground bg-muted/30 p-2 rounded-md whitespace-pre-wrap text-xs max-h-24 overflow-y-auto">
+          {incident.description}
+        </p>
         {incident.initialAttachmentUrl && (
-            <p className="text-xs flex items-center"><Paperclip className="h-3 w-3 mr-1"/> Adjunto Creador: {incident.initialAttachmentUrl}</p>
+          <a
+            href={incident.initialAttachmentUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200 truncate"
+            download={incident.initialAttachmentName || 'adjunto'}
+          >
+            <Paperclip className="h-3 w-3 mr-1" /> {incident.initialAttachmentName || 'Descargar adjunto'}
+          </a>
         )}
 
-        {incident.status !== "pendiente" && incident.responseText && (
-            <div className="mt-3 pt-3 border-t border-border">
-                <p className="font-semibold flex items-center"><MessageSquare className="h-4 w-4 mr-2 text-primary"/> Respuesta ({responderName} - {formatDate(incident.respondedAt)}):</p>
-                <p className="text-muted-foreground bg-muted/30 p-2 rounded-md whitespace-pre-wrap text-xs max-h-24 overflow-y-auto">{incident.responseText}</p>
-                {incident.responseAttachmentUrl && (
-                     <p className="text-xs flex items-center"><Paperclip className="h-3 w-3 mr-1"/> Adjunto Respuesta: {incident.responseAttachmentUrl}</p>
-                )}
-            </div>
-        )}
-         {incident.status === "cerrado" && (
-            <div className="mt-2 pt-2 border-t border-border">
-                <p className="text-xs font-semibold flex items-center text-accent-foreground/80"><CheckCircle2 className="h-4 w-4 mr-2 text-accent"/> Cerrado por {closerName} el {formatDate(incident.closedAt)}</p>
-            </div>
+        {incident.responses && incident.responses.length > 0 && (
+          <div className="mt-3 pt-3 border-t border-border space-y-2">
+            <p className="font-semibold flex items-center">
+              <MessageSquare className="h-4 w-4 mr-2 text-primary" /> Respuestas:
+            </p>
+            {incident.responses.map((response, index) => {
+              const responderName = response.respondedBy === incident.landlordId
+                ? (incident.landlordName || "Arrendador")
+                : (incident.tenantName || "Inquilino");
+              return (
+                <div key={index} className="border-l-2 pl-2 space-y-1">
+                  <p className="text-xs font-semibold text-muted-foreground">
+                    {formatDate(response.respondedAt)} por {responderName}:
+                  </p>
+                  <p className="text-muted-foreground bg-muted/30 p-2 rounded-md whitespace-pre-wrap text-xs max-h-20 overflow-y-auto">
+                    {response.responseText}
+                  </p>
+                  {response.responseAttachmentUrl && (
+                    <a
+                      href={response.responseAttachmentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center px-2.5 py-0.5 rounded-md text-xs font-medium bg-blue-100 text-blue-800 hover:bg-blue-200 truncate"
+                      download={response.responseAttachmentName || 'adjunto'}
+                    >
+                      <Paperclip className="h-3 w-3 mr-1" /> {response.responseAttachmentName || 'Descargar adjunto'}
+                    </a>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         )}
 
+        {incident.status === "cerrado" && (
+          <div className="mt-2 pt-2 border-t border-border">
+            <p className="text-xs font-semibold flex items-center text-accent-foreground/80">
+              <CheckCircle2 className="h-4 w-4 mr-2 text-accent" />
+              Cerrado por {closerName} el {formatDate(incident.closedAt)}
+            </p>
+          </div>
+        )}
       </CardContent>
+
       <CardFooter className="flex justify-end space-x-2 bg-muted/30 p-4 mt-auto">
-        {/* Action buttons based on currentUser and incident state */}
-        {currentUser && incident.status === "pendiente" && incident.createdBy !== currentUser.uid && onRespond && (
-          <Button className="bg-primary hover:bg-primary/90" size="sm" onClick={() => onRespond(incident)} disabled={isProcessing}>
+        {currentUser && incident.status !== "cerrado" && incident.createdBy !== currentUser.uid && onRespond && (
+          <Button
+            className="bg-primary hover:bg-primary/90"
+            size="sm"
+            onClick={() => onRespond(incident)}
+            disabled={isProcessing}
+          >
             <MessageSquare className="h-4 w-4 mr-1" /> Responder
           </Button>
         )}
-        {currentUser && incident.status === "respondido" && incident.createdBy === currentUser.uid && onClose && (
-          <Button className="bg-accent hover:bg-accent/90 text-accent-foreground" size="sm" onClick={() => onClose(incident.id)} disabled={isProcessing}>
+        {currentUser && incident.status !== "cerrado" && incident.createdBy === currentUser.uid && onClose && (
+          <Button
+            className="bg-accent hover:bg-accent/90 text-accent-foreground"
+            size="sm"
+            onClick={() => onClose(incident.id)}
+            disabled={isProcessing}
+          >
             <CheckCircle2 className="h-4 w-4 mr-1" /> {isProcessing ? "Cerrando..." : "Marcar como Cerrado"}
           </Button>
         )}
