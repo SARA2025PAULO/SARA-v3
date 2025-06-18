@@ -43,8 +43,10 @@ const admin = __importStar(require("firebase-admin"));
 const node_fetch_1 = __importDefault(require("node-fetch"));
 const passwordRecovery_1 = require("./passwordRecovery");
 Object.defineProperty(exports, "passwordRecovery", { enumerable: true, get: function () { return passwordRecovery_1.passwordRecovery; } });
-const uploadProperties_1 = require("./uploadProperties"); // Import the uploadProperties function
+const uploadProperties_1 = require("./uploadProperties");
 Object.defineProperty(exports, "uploadProperties", { enumerable: true, get: function () { return uploadProperties_1.uploadProperties; } });
+const sendContractInvitation_1 = require("./sendContractInvitation");
+Object.defineProperty(exports, "sendContractInvitation", { enumerable: true, get: function () { return sendContractInvitation_1.sendContractInvitation; } });
 admin.initializeApp();
 // 0. Función de prueba mínima para aislar problemas de despliegue
 exports.helloWorld = functions.https.onRequest((req, res) => {
@@ -88,67 +90,5 @@ exports.testEmailRest = functions.https.onRequest(async (req, res) => {
     catch (error) {
         console.error('Error in testEmailRest function:', error);
         res.status(500).send('Error en testEmailRest');
-    }
-});
-// 2. Función trigger de Firestore para invitaciones de contrato
-exports.sendContractInvitation = functions.firestore
-    .document('contracts/{contractId}')
-    .onCreate(async (snap, context) => {
-    const data = snap.data();
-    const tenantEmail = data.tenantEmail;
-    const tenantName = data.tenantName;
-    const sendgridApiKey = functions.config().sendgrid?.key;
-    const registrationUrl = 'https://sara-2-0.vercel.app/login';
-    if (!tenantEmail || !tenantName || !sendgridApiKey) {
-        console.warn('Faltan tenantEmail, tenantName o SendGrid API key');
-        return;
-    }
-    const htmlButton = `
-      <p>Hola ${tenantName},</p>
-      <p>Has sido invitado a un nuevo contrato en SARA. Haz clic en el botón de abajo para registrarte y ver los detalles:</p>
-      <table cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
-        <tr>
-          <td align="center" bgcolor="#4CAF50" style="border-radius:5px;">
-            <a href="${registrationUrl}" target="_blank" style="
-              display: inline-block;
-              padding: 12px 24px;
-              font-size: 16px;
-              color: #ffffff;
-              text-decoration: none;
-              font-weight: bold;
-            ">Registrarse en SARA</a>
-          </td>
-        </tr>
-      </table>
-      <p>Saludos,<br/>El equipo de SARA</p>
-    `;
-    const msg = {
-        personalizations: [{ to: [{ email: tenantEmail }] }],
-        from: { email: 'notificaciones@sarachile.com' },
-        subject: 'Has sido invitado a un contrato en SARA',
-        content: [
-            { type: 'text/plain', value: `Hola ${tenantName}, visita: ${registrationUrl}` },
-            { type: 'text/html', value: htmlButton },
-        ],
-    };
-    try {
-        console.log('SendGrid API Key (partial):', sendgridApiKey.substring(0, 5) + '...');
-        console.log('Mensaje:', JSON.stringify(msg, null, 2));
-        const response = await (0, node_fetch_1.default)('https://api.sendgrid.com/v3/mail/send', {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${sendgridApiKey}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(msg),
-        });
-        const responseBody = await response.text();
-        console.log(`Status - ${response.status}, Body - ${responseBody}`);
-        if (!response.ok) {
-            console.error(`Error invitación a ${tenantEmail}: ${response.status} - ${responseBody}`);
-        }
-    }
-    catch (error) {
-        console.error(`Error en sendContractInvitation ${context.params.contractId}:`, error);
     }
 });

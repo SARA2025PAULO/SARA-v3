@@ -1,10 +1,12 @@
+
 // firebase-functions/src/index.ts
 import * as functions from 'firebase-functions';
 import * as admin from 'firebase-admin';
 import fetch from 'node-fetch';
 
 import { passwordRecovery } from './passwordRecovery';
-import { uploadProperties } from './uploadProperties'; // Import the uploadProperties function
+import { uploadProperties } from './uploadProperties';
+import { sendContractInvitation } from './sendContractInvitation';
 
 admin.initializeApp();
 
@@ -55,76 +57,11 @@ export const testEmailRest = functions.https.onRequest(async (req, res): Promise
   }
 });
 
-// 2. Función trigger de Firestore para invitaciones de contrato
-export const sendContractInvitation = functions.firestore
-  .document('contracts/{contractId}')
-  .onCreate(async (snap, context): Promise<void> => {
-    const data = snap.data()!;
-    const tenantEmail = data.tenantEmail;
-    const tenantName = data.tenantName;
-    const sendgridApiKey = functions.config().sendgrid?.key;
-    const registrationUrl = 'https://sara-2-0.vercel.app/login';
-
-    if (!tenantEmail || !tenantName || !sendgridApiKey) {
-      console.warn('Faltan tenantEmail, tenantName o SendGrid API key');
-      return;
-    }
-
-    const htmlButton = `
-      <p>Hola ${tenantName},</p>
-      <p>Has sido invitado a un nuevo contrato en SARA. Haz clic en el botón de abajo para registrarte y ver los detalles:</p>
-      <table cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
-        <tr>
-          <td align="center" bgcolor="#4CAF50" style="border-radius:5px;">
-            <a href="${registrationUrl}" target="_blank" style="
-              display: inline-block;
-              padding: 12px 24px;
-              font-size: 16px;
-              color: #ffffff;
-              text-decoration: none;
-              font-weight: bold;
-            ">Registrarse en SARA</a>
-          </td>
-        </tr>
-      </table>
-      <p>Saludos,<br/>El equipo de SARA</p>
-    `;
-
-    const msg = {
-      personalizations: [{ to: [{ email: tenantEmail }] }],
-      from: { email: 'notificaciones@sarachile.com' },
-      subject: 'Has sido invitado a un contrato en SARA',
-      content: [
-        { type: 'text/plain', value: `Hola ${tenantName}, visita: ${registrationUrl}` },
-        { type: 'text/html', value: htmlButton },
-      ],
-    };
-
-    try {
-      console.log('SendGrid API Key (partial):', sendgridApiKey.substring(0, 5) + '...');
-      console.log('Mensaje:', JSON.stringify(msg, null, 2));
-
-      const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${sendgridApiKey}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(msg),
-      });
-      const responseBody = await response.text();
-      console.log(`Status - ${response.status}, Body - ${responseBody}`);
-
-      if (!response.ok) {
-        console.error(`Error invitación a ${tenantEmail}: ${response.status} - ${responseBody}`);
-      }
-    } catch (error: any) {
-      console.error(`Error en sendContractInvitation ${context.params.contractId}:`, error);
-    }
-  });
+// 2. Función trigger de Firestore para invitaciones de contrato (en su propio archivo)
+export { sendContractInvitation };
 
 // 3. Función HTTPS para recuperación de contraseña (en su propio archivo)
 export { passwordRecovery };
 
 // 4. Función HTTPS para carga masiva de propiedades (en su propio archivo)
-export { uploadProperties }; // Export the uploadProperties function
+export { uploadProperties };
