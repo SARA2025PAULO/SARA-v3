@@ -4,39 +4,15 @@
 import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FileText, Home, MessageSquare, Wallet, ShieldCheck, Receipt, CalendarDays, Award, Star, Download } from "lucide-react"; 
-import type { Contract, Property, Evaluation, EvaluationCriteria } from "@/types";
-import Image from "next/image";
+import { FileText, Home, MessageSquare, Wallet, ShieldCheck, Receipt, CalendarDays, Award, Download } from "lucide-react"; 
+import type { Contract, Evaluation } from "@/types";
 import { Badge } from "@/components/ui/badge"; 
 import { AnnouncementsSection } from "./AnnouncementsSection";
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import { Skeleton } from "@/components/ui/skeleton";
-
-// Mock data - replace with actual data fetching for contract details if needed beyond score
-const mockTenantContracts: Contract[] = [
-  { 
-    id: "c1", 
-    propertyId: "p1", 
-    propertyName: "Av. Siempre Viva 742", 
-    landlordId: "landlord1", 
-    landlordName: "Ned Flanders", 
-    tenantId: "tenant123", 
-    tenantEmail: "tenant@example.com",
-    startDate: "2023-08-01", 
-    endDate: "2024-07-31", 
-    rentAmount: 750000, 
-    securityDepositAmount: 750000,
-    paymentDay: 5,
-    status: "Activo", 
-    createdAt: "2023-07-15" 
-  },
-];
-const mockPropertyDetails: Property | null = mockTenantContracts.length > 0 ? {
-    id: "p1", address: "Av. Siempre Viva 742", status: "Arrendada", description: "Acogedora casa familiar con amplio jardín y garage para dos autos.", ownerId: "landlord1", imageUrl: "https://placehold.co/600x400.png", price: 750000, bedrooms: 3, bathrooms: 2, area: 150
-} : null;
 
 const ScoreDisplay = ({ score }: { score: number | null }) => {
   if (score === null) {
@@ -88,6 +64,8 @@ export function TenantDashboard() {
   const { currentUser } = useAuth();
   const [globalScore, setGlobalScore] = useState<number | null>(null);
   const [isLoadingScore, setIsLoadingScore] = useState(true);
+  const [activeContract, setActiveContract] = useState<Contract | null>(null);
+  const [isLoadingContract, setIsLoadingContract] = useState(true);
 
   useEffect(() => {
     if (currentUser && currentUser.role === 'Inquilino' && db) {
@@ -117,15 +95,35 @@ export function TenantDashboard() {
           setIsLoadingScore(false);
         }
       };
+
+      const fetchActiveContract = async () => {
+        setIsLoadingContract(true);
+        try {
+          const contractsQuery = query(collection(db, 'contracts'), where('tenantId', '==', currentUser.uid), where('status', '==', 'Activo'), limit(1));
+          const contractSnapshot = await getDocs(contractsQuery);
+          if (!contractSnapshot.empty) {
+            const contractDoc = contractSnapshot.docs[0];
+            setActiveContract({ id: contractDoc.id, ...contractDoc.data() } as Contract);
+          } else {
+            setActiveContract(null);
+          }
+        } catch (error) {
+          console.error("Error fetching active contract:", error);
+          setActiveContract(null);
+        } finally {
+          setIsLoadingContract(false);
+        }
+      };
+
       fetchScore();
+      fetchActiveContract();
     } else {
       setIsLoadingScore(false);
+      setIsLoadingContract(false);
       setGlobalScore(null);
+      setActiveContract(null);
     }
   }, [currentUser]);
-
-  const currentContract = mockTenantContracts.find(c => c.status === "Activo" || c.status === "Pendiente");
-  const propertyDetails = mockPropertyDetails; // Still using mock for property details
 
   return (
     <div className="space-y-6">
@@ -164,11 +162,21 @@ export function TenantDashboard() {
         <AnnouncementsSection />
       </div>
       
-      {currentContract && propertyDetails ? (
+      {isLoadingContract ? (
+        <Card className="shadow-lg">
+          <CardHeader>
+            <Skeleton className="h-8 w-3/4" />
+            <Skeleton className="h-4 w-1/2" />
+          </CardHeader>
+          <CardContent>
+            <Skeleton className="h-48 w-full" />
+          </CardContent>
+        </Card>
+      ) : activeContract ? (
           <Card className="shadow-lg">
             <CardHeader>
               <CardTitle>Tu Arriendo Actual</CardTitle>
-              <CardDescription>{propertyDetails.address}</CardDescription>
+              <CardDescription>{activeContract.propertyName}</CardDescription>
             </CardHeader>
             <CardContent className="grid md:grid-cols-2 gap-6">
               <div className="rounded-lg mb-4">
@@ -178,17 +186,17 @@ export function TenantDashboard() {
                 }
               </div>
               <div className="space-y-3 text-sm">
-                <p><span className="font-semibold">Estado del Contrato:</span> <Badge variant={currentContract.status === "Activo" ? "default" : "secondary"} className={`${currentContract.status === "Activo" ? "bg-accent text-accent-foreground" : "bg-yellow-100 text-yellow-800"}`}>{currentContract.status}</Badge></p>
-                <p><span className="font-semibold">Propietario:</span> {currentContract.landlordName || "N/A"}</p>
-                <p className="flex items-center"><Wallet className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Renta Mensual:</span> ${currentContract.rentAmount.toLocaleString('es-CL')}</p>
-                {currentContract.securityDepositAmount !== undefined && (
-                  <p className="flex items-center"><ShieldCheck className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Garantía:</span> ${currentContract.securityDepositAmount.toLocaleString('es-CL')}</p>
+                <p><span className="font-semibold">Estado del Contrato:</span> <Badge variant={"default"} className="bg-accent text-accent-foreground">{activeContract.status}</Badge></p>
+                <p><span className="font-semibold">Propietario:</span> {activeContract.landlordName || "N/A"}</p>
+                <p className="flex items-center"><Wallet className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Renta Mensual:</span> ${activeContract.rentAmount.toLocaleString('es-CL')}</p>
+                {activeContract.securityDepositAmount !== undefined && (
+                  <p className="flex items-center"><ShieldCheck className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Garantía:</span> ${activeContract.securityDepositAmount.toLocaleString('es-CL')}</p>
                 )}
-                {currentContract.paymentDay && (
-                  <p className="flex items-center"><Receipt className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Día de Pago:</span> {currentContract.paymentDay} de cada mes</p>
+                {activeContract.paymentDay && (
+                  <p className="flex items-center"><Receipt className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Día de Pago:</span> {activeContract.paymentDay} de cada mes</p>
                 )}
-                <p className="flex items-center"><CalendarDays className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Inicio de Contrato:</span> {new Date(currentContract.startDate).toLocaleDateString('es-CL')}</p>
-                <p className="flex items-center"><CalendarDays className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Fin de Contrato:</span> {new Date(currentContract.endDate).toLocaleDateString('es-CL')}</p>
+                <p className="flex items-center"><CalendarDays className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Inicio de Contrato:</span> {new Date(activeContract.startDate).toLocaleDateString('es-CL')}</p>
+                <p className="flex items-center"><CalendarDays className="h-4 w-4 mr-2 text-primary flex-shrink-0" /> <span className="font-semibold">Fin de Contrato:</span> {new Date(activeContract.endDate).toLocaleDateString('es-CL')}</p>
                 <Button asChild className="w-full mt-4">
                   <Link href="/contratos"> 
                     <FileText className="mr-2 h-4 w-4" /> Ver Detalles del Contrato

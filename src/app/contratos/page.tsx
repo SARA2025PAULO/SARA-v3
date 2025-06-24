@@ -24,9 +24,11 @@
         updateDoc,
         orderBy,
         limit,
-        deleteDoc // Import deleteDoc
+        deleteDoc,
+        or,
+        and // Import 'and'
       } from "firebase/firestore";
-      import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog"; // Import ConfirmationDialog
+      import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
       
       
       export default function ContratosPage() {
@@ -46,8 +48,8 @@
         const [isApprovalDialogOpen, setIsApprovalDialogOpen] = useState(false);
         const [contractToApprove, setContractToApprove] = useState<Contract | null>(null);
         
-        const [contractToDelete, setContractToDelete] = useState<Contract | null>(null); // New state for contract to delete
-        const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false); // New state for delete dialog
+        const [contractToDelete, setContractToDelete] = useState<Contract | null>(null);
+        const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
         const [searchTerm, setSearchTerm] = useState("");
         const [statusFilter, setStatusFilter] = useState<"todos" | Contract["status"]>("todos");
@@ -81,7 +83,16 @@
             if (currentUser.role === "Arrendador") {
               q = query(contractsCollectionRef, where("landlordId", "==", currentUser.uid), orderBy("createdAt", "desc"));
             } else if (currentUser.role === "Inquilino") {
-              q = query(contractsCollectionRef, where("tenantId", "==", currentUser.uid), orderBy("createdAt", "desc"));
+              q = query(contractsCollectionRef, 
+                or(
+                  where("tenantId", "==", currentUser.uid),
+                  and(
+                    where("tenantEmail", "==", currentUser.email),
+                    where("status", "==", "Pendiente")
+                  )
+                ),
+                orderBy("createdAt", "desc")
+              );
             } else {
               setContracts([]);
               setIsLoading(false);
@@ -199,14 +210,18 @@
         };
       
         const handleApprovalAction = async (contractId: string, newStatus: "Activo" | "Rechazado") => {
-          if (!db) return;
+          if (!db || !currentUser) return;
           setIsSubmitting(true);
           try {
             const contractDocRef = doc(db, "contracts", contractId);
-            await updateDoc(contractDocRef, { 
+            const updateData: { status: "Activo" | "Rechazado", updatedAt: any, tenantId?: string } = {
               status: newStatus,
               updatedAt: serverTimestamp(),
-            });
+            };
+            if (newStatus === "Activo") {
+              updateData.tenantId = currentUser.uid;
+            }
+            await updateDoc(contractDocRef, updateData);
             toast({ 
               title: `Contrato ${newStatus === "Activo" ? "Aprobado" : "Rechazado"}`, 
               description: `El contrato ha sido marcado como ${newStatus.toLowerCase()}.`,
