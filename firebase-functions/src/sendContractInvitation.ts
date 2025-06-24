@@ -2,7 +2,9 @@
 import * as functions from 'firebase-functions';
 import fetch from 'node-fetch';
 
-export const sendContractInvitation = functions.firestore
+export const sendContractInvitation = functions
+  .region('us-central1') // Especifica la región para compatibilidad con Firestore
+  .firestore
   .document('contracts/{contractId}')
   .onCreate(async (snap, context): Promise<void> => {
     const data = snap.data();
@@ -20,39 +22,25 @@ export const sendContractInvitation = functions.firestore
       return;
     }
 
-    const htmlButton = `
-      <p>Hola ${tenantName},</p>
-      <p>Has sido invitado a un nuevo contrato en SARA. Haz clic en el botón de abajo para registrarte y ver los detalles:</p>
-      <table cellpadding="0" cellspacing="0" border="0" style="margin:20px 0;">
-        <tr>
-          <td align="center" bgcolor="#4CAF50" style="border-radius:5px;">
-            <a href="${registrationUrl}" target="_blank" style="
-              display: inline-block;
-              padding: 12px 24px;
-              font-size: 16px;
-              color: #ffffff;
-              text-decoration: none;
-              font-weight: bold;
-            ">Registrarse en SARA</a>
-          </td>
-        </tr>
-      </table>
-      <p>Saludos,<br/>El equipo de SARA</p>
-    `;
+    // Remove htmlButton as it will now be part of the SendGrid Dynamic Template
+    // const htmlButton = `...`; 
 
     const msg = {
-      personalizations: [{ to: [{ email: tenantEmail }] }],
+      personalizations: [{
+        to: [{ email: tenantEmail }],
+        dynamic_template_data: {
+          tenantName: tenantName,
+          registrationUrl: registrationUrl,
+          // Add other data if your template requires them
+        },
+      }],
       from: { email: 'notificaciones@sarachile.com' },
-      subject: 'Has sido invitado a un contrato en SARA',
-      content: [
-        { type: 'text/plain', value: `Hola ${tenantName}, visita: ${registrationUrl}` },
-        { type: 'text/html', value: htmlButton },
-      ],
+      template_id: 'd-0e5c724eda68490fb40916d7d6bf0274', // <--- Actualizado con el ID de tu plantilla
     };
 
     try {
       console.log('SendGrid API Key (partial):', sendgridApiKey.substring(0, 5) + '...');
-      console.log('Mensaje:', JSON.stringify(msg, null, 2));
+      console.log('Mensaje a SendGrid:', JSON.stringify(msg, null, 2));
 
       const response = await fetch('https://api.sendgrid.com/v3/mail/send', {
         method: 'POST',
@@ -67,6 +55,8 @@ export const sendContractInvitation = functions.firestore
 
       if (!response.ok) {
         console.error(`Error invitación a ${tenantEmail}: ${response.status} - ${responseBody}`);
+      } else {
+        console.log(`Invitación enviada exitosamente a ${tenantEmail}.`);
       }
     } catch (error: any) {
       console.error(`Error in sendContractInvitation ${context.params.contractId}:`, error);

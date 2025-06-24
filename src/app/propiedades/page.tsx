@@ -5,8 +5,9 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { PropertyCard } from "@/components/propiedades/PropertyCard";
 import { PropertyFormDialog, type PropertyFormValues } from "@/components/propiedades/PropertyFormDialog";
+import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog"; // Importar ConfirmationDialog
 import type { Property } from "@/types";
-import { PlusCircle, Search, LayoutGrid, List, Edit3, Eye } from "lucide-react";
+import { PlusCircle, Search, LayoutGrid, List, Edit3, Eye, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,8 @@ export default function PropiedadesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
+  const [propertyToDelete, setPropertyToDelete] = useState<Property | null>(null); // State for deletion
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false); // State for deletion dialog
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
@@ -164,6 +167,28 @@ export default function PropiedadesPage() {
     }
   };
 
+  const openDeleteDialog = (property: Property) => {
+    setPropertyToDelete(property);
+    setIsDeleteDialogOpen(true);
+  };
+
+  const handleDeletePropertyConfirmed = async () => {
+    if (!propertyToDelete || !db) return;
+
+    try {
+      await deleteDoc(doc(db, "propiedades", propertyToDelete.id));
+      setProperties(prev => prev.filter(p => p.id !== propertyToDelete.id));
+      toast({ title: "Propiedad Eliminada", description: `La propiedad "${propertyToDelete.address}" ha sido eliminada.` });
+    } catch (error) {
+      console.error("Error deleting property:", error);
+      toast({ title: "Error al Eliminar", description: "No se pudo eliminar la propiedad.", variant: "destructive" });
+    } finally {
+      setPropertyToDelete(null);
+      setIsDeleteDialogOpen(false);
+    }
+  };
+
+
   const handleAddNewProperty = () => {
     setEditingProperty(null);
     setIsFormOpen(true);
@@ -239,29 +264,30 @@ export default function PropiedadesPage() {
                 <PropertyCard
                     key={property.id}
                     property={property}
-                    onEdit={handleEditProperty}
+                    userRole={currentUser?.role ?? null}
+                    onManage={handleEditProperty}
                     onViewDetails={handleViewDetails}
+                    onDelete={openDeleteDialog}
                 />
              ) : (
                 <Card key={property.id} className="flex flex-col md:flex-row overflow-hidden shadow-md hover:shadow-lg transition-shadow">
- {console.log(property.status)}
                     <img src={property.imageUrl || "https://placehold.co/200x150.png"} alt={property.address} className="w-full md:w-48 h-48 md:h-auto object-cover" data-ai-hint="property building" />
                     <div className="p-4 flex flex-col flex-grow">
                         <CardTitle className="text-lg font-semibold mb-1 font-headline">{property.address}</CardTitle>
-                       {/* Simple div for status in list view */}
                        <div className={`w-fit text-xs mb-2 px-2 py-0.5 rounded-full 
                            ${property.status === "Disponible" ? "bg-accent text-accent-foreground" 
                            : property.status === "Arrendada" ? "bg-blue-200 text-blue-800" 
                            : "bg-yellow-200 text-yellow-800"}
-                       `}> {/* Removed the misplaced closing Badge tag */}
+                       `}>
                              {property.status}
                         </div>
                         <CardDescription className="text-sm text-muted-foreground mb-1 flex-grow">{property.description ? property.description.substring(0,100) + (property.description.length > 100 ? '...' : '') : ''}</CardDescription>
                         {property.potentialTenantEmail && <p className="text-xs text-primary/80 mb-2">Potencial Inquilino: {property.potentialTenantEmail}</p>}
                          <div className="text-sm text-primary font-medium mb-2">${property.price?.toLocaleString('es-CL') || 'N/A'}/mes</div>
                         <div className="flex justify-end space-x-2 mt-auto">
-                            <Button variant="outline" size="sm" onClick={() => handleEditProperty(property)}><Edit3 className="h-4 w-4 mr-1" /> Editar</Button>
-                            <Button variant="default" size="sm" onClick={() => onViewDetails(property)}><Eye className="h-4 w-4 mr-1" /> Detalles</Button>
+                            <Button variant="outline" size="sm" onClick={() => handleViewDetails(property)}><Eye className="h-4 w-4 mr-1" /> Detalles</Button>
+                            <Button variant="default" size="sm" onClick={() => handleEditProperty(property)}><Edit3 className="h-4 w-4 mr-1" /> Editar</Button>
+                            <Button variant="destructive" size="sm" onClick={() => openDeleteDialog(property)}><Trash2 className="h-4 w-4 mr-1" /> Eliminar</Button>
                         </div>
                     </div>
                 </Card>
@@ -275,8 +301,16 @@ export default function PropiedadesPage() {
         onOpenChange={setIsFormOpen}
         onSave={handleSaveProperty}
       />
+      <ConfirmationDialog
+        open={isDeleteDialogOpen}
+        onOpenChange={setIsDeleteDialogOpen}
+        title="Eliminar Propiedad"
+        description={`¿Estás seguro de que quieres eliminar la propiedad "${propertyToDelete?.address}"? Esta acción no se puede revertir.`}
+        onConfirm={handleDeletePropertyConfirmed}
+        confirmText="Eliminar"
+        cancelText="Cancelar"
+        isDestructive={true}
+      />
     </div>
   );
 }
-
-    

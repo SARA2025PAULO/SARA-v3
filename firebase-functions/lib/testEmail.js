@@ -36,29 +36,64 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendTestEmail = void 0;
+exports.testEmail = void 0;
 const functions = __importStar(require("firebase-functions"));
-const mail_1 = __importDefault(require("@sendgrid/mail"));
-// Initialize SendGrid with the API key from environment variables
-mail_1.default.setApiKey(functions.config().sendgrid.key);
-exports.sendTestEmail = functions.https.onRequest(async (req, res) => {
+const admin = __importStar(require("firebase-admin"));
+const axios_1 = __importDefault(require("axios"));
+if (admin.apps.length === 0) {
+    admin.initializeApp();
+}
+exports.testEmail = functions.https.onCall(async (data, context) => {
+    if (!context.auth) {
+        throw new functions.https.HttpsError('unauthenticated', 'La función debe ser llamada por un usuario autenticado.');
+    }
+    const userEmail = context.auth.token.email;
+    if (!userEmail) {
+        throw new functions.https.HttpsError('invalid-argument', 'No se pudo obtener el correo del usuario autenticado.');
+    }
+    const sendgridApiKey = functions.config().sendgrid?.key;
+    if (!sendgridApiKey) {
+        console.error("FATAL: La API Key de SendGrid no está configurada.");
+        throw new functions.https.HttpsError('internal', 'El servicio de correo no está configurado.');
+    }
     const msg = {
-        to: 'test@example.com', // Replace with your desired recipient email
-        from: 'notifications@sarachile.com', // Replace with your verified SendGrid sender email
-        subject: 'Test Email from Firebase Function',
-        text: 'This is a test email sent from a Firebase HTTPS function using SendGrid.',
-        html: '<p>This is a test email sent from a Firebase HTTPS function using SendGrid.</p>',
+        personalizations: [{
+                to: [{ email: userEmail }]
+            }],
+        from: {
+            name: "Prueba S.A.R.A.",
+            email: "notificaciones@sarachile.com"
+        },
+        subject: `Prueba de correo desde S.A.R.A. - ${new Date().toISOString()}`,
+        content: [
+            {
+                type: 'text/plain',
+                value: 'Si recibes este correo, la configuración de SendGrid y la función de prueba están funcionando.'
+            },
+            {
+                type: 'text/html',
+                value: '<h1>¡Hola!</h1><p>Si recibes este correo, la configuración de SendGrid y la función de prueba están funcionando.</p>'
+            }
+        ]
     };
     try {
-        await mail_1.default.send(msg);
-        console.log('Test email sent successfully');
-        res.status(200).send('Test email sent successfully!');
+        await axios_1.default.post('https://api.sendgrid.com/v3/mail/send', msg, {
+            headers: {
+                'Authorization': `Bearer ${sendgridApiKey}`,
+                'Content-Type': 'application/json',
+            },
+        });
+        console.log(`Correo de prueba enviado exitosamente a ${userEmail}.`);
+        return { success: true, message: `Correo de prueba enviado a ${userEmail}` };
     }
     catch (error) {
-        console.error('Error sending test email:', error);
         if (error.response) {
-            console.error(error.response.body);
+            console.error(`Error al enviar correo de prueba a ${userEmail}: ${error.response.status} - ${JSON.stringify(error.response.data)}`);
+            throw new functions.https.HttpsError('internal', `Error de SendGrid: ${error.response.status} ${JSON.stringify(error.response.data)}`);
         }
-        res.status(500).send('Failed to send test email.');
+        else {
+            console.error('Excepción al enviar correo de prueba:', error);
+            throw new functions.https.HttpsError('internal', 'Ocurrió una excepción inesperada al enviar el correo.');
+        }
     }
 });

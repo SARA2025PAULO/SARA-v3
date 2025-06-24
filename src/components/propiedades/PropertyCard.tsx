@@ -3,79 +3,76 @@
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import type { Property } from "@/types";
-import { Edit3, Eye, DollarSign, BedDouble, Bath, Ruler } from "lucide-react";
+import type { Property, UserRole } from "@/types";
+import { Building, MapPin, Edit3, Trash2 } from "lucide-react";
 
 interface PropertyCardProps {
   property: Property;
-  onEdit: (property: Property) => void;
-  onViewDetails: (property: Property) => void;
+  userRole: UserRole | null;
+  onViewDetails?: (property: Property) => void;
+  onManage?: (property: Property) => void;
+  onDelete?: (property: Property) => void; 
 }
 
-export function PropertyCard({ property, onEdit, onViewDetails }: PropertyCardProps) {
-  const getStatusVariant = (status: string | undefined) => {
-    switch (status) {
-      case "Disponible":
-        return "bg-accent/80 hover:bg-accent text-accent-foreground";
-      case "Arrendada":
-        return "bg-blue-500 text-white";
-      case "Mantenimiento":
-        return "bg-yellow-500 text-white";
-      default:
-        return "bg-secondary text-secondary-foreground";
-    }
-  };
+export function PropertyCard({
+  property,
+  userRole,
+  onViewDetails,
+  onManage,
+  onDelete,
+}: PropertyCardProps) {
+
+  const statusVariant = property.status === "Disponible" ? "bg-green-500 text-white" : property.status === "Arrendada" ? "bg-orange-400 text-orange-900" : "bg-gray-300 text-gray-700";
 
   return (
-    <Card className="overflow-hidden shadow-lg hover:shadow-xl transition-shadow duration-300 flex flex-col">
-      <CardHeader className="p-4 bg-muted/30">
-        <Badge className={`absolute top-2 right-2 text-xs z-10 visible ${getStatusVariant(property.status)}`}>
-          {property.status}
-        </Badge>
-        <CardTitle className="text-lg font-semibold mb-1 truncate font-headline">
-          {property.address}
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="p-4 flex-grow">
-        <CardDescription className="text-sm text-muted-foreground h-10 overflow-hidden text-ellipsis">
+    <Card className="shadow-md hover:shadow-lg transition-shadow duration-300 flex flex-col">
+      <CardHeader className="pb-3">
+        <div className="flex justify-between items-start">
+          <CardTitle className="text-lg font-semibold font-headline">{property.address}</CardTitle>
+          <Badge className={`${statusVariant} text-xs`}>{property.status}</Badge>
+        </div>
+        <CardDescription className="text-sm text-muted-foreground pt-1">
           {property.description}
         </CardDescription>
-        <div className="mt-3 space-y-1 text-sm text-foreground/80">
-          {property.price && (
-            <div className="flex items-center">
-              <DollarSign className="h-4 w-4 mr-2 text-primary" />
-              <span>${property.price.toLocaleString('es-CL')}/mes</span>
-            </div>
-          )}
-          <div className="grid grid-cols-2 gap-x-2 gap-y-1 pt-1">
-            {property.bedrooms && (
-              <div className="flex items-center">
-                <BedDouble className="h-4 w-4 mr-2 text-primary" />
-                <span>{property.bedrooms} hab.</span>
-              </div>
-            )}
-            {property.bathrooms && (
-              <div className="flex items-center">
-                <Bath className="h-4 w-4 mr-2 text-primary" />
-                <span>{property.bathrooms} baños</span>
-              </div>
-            )}
-            {property.area && (
-              <div className="flex items-center col-span-2">
-                <Ruler className="h-4 w-4 mr-2 text-primary" />
-                <span>{property.area} m²</span>
-              </div>
-            )}
-          </div>
+      </CardHeader>
+      <CardContent className="space-y-2 text-sm flex-grow">
+        <div className="flex items-center">
+          <MapPin className="h-4 w-4 mr-2 text-primary flex-shrink-0" />
+          <span>{property.address}</span>
+        </div>
+        <div className="flex items-center">
+          <Building className="h-4 w-4 mr-2 text-primary flex-shrink-0" />
+          <span>Habitaciones: {property.bedrooms || 'N/A'}</span>
+        </div>
+        <div className="flex items-center">
+          <Building className="h-4 w-4 mr-2 text-primary flex-shrink-0" />
+          <span>Baños: {property.bathrooms || 'N/A'}</span>
+        </div>
+        <div className="flex items-center">
+          <Building className="h-4 w-4 mr-2 text-primary flex-shrink-0" />
+          <span>Área: {property.area || 'N/A'} m2</span>
+        </div>
+        <div className="flex items-center">
+          <Building className="h-4 w-4 mr-2 text-primary flex-shrink-0" />
+          <span>Precio: ${property.price?.toLocaleString('es-CL')}</span>
         </div>
       </CardContent>
-      <CardFooter className="p-4 bg-muted/30 flex justify-end space-x-2">
-        <Button variant="outline" size="sm" onClick={() => onEdit(property)}>
-          <Edit3 className="h-4 w-4 mr-1" /> Editar
-        </Button>
-        <Button variant="default" size="sm" onClick={() => onViewDetails(property)}> {/* Use default variant for primary action */}
-          <Eye className="h-4 w-4 mr-1" /> Ver Detalles
-        </Button>
+      <CardFooter className="flex justify-end gap-2 bg-muted/30 p-4 mt-auto">
+         {onViewDetails && (
+          <Button variant="outline" size="sm" onClick={() => onViewDetails(property)}>
+            Ver Detalles
+          </Button>
+        )}
+        {userRole?.toLowerCase() === "arrendador" && onManage && (
+          <Button variant="default" size="sm" onClick={() => onManage(property)}>
+            <Edit3 className="h-4 w-4 mr-1" /> Gestionar
+          </Button>
+        )}
+        {userRole?.toLowerCase() === "arrendador" && onDelete && (
+          <Button variant="destructive" size="sm" onClick={() => onDelete(property)}>
+            <Trash2 className="h-4 w-4 mr-1" /> Eliminar
+          </Button>
+        )}
       </CardFooter>
     </Card>
   );

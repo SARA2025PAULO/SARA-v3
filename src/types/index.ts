@@ -36,9 +36,10 @@ export interface Contract {
   id: string; // Firestore document ID
   propertyId: string;
   propertyName?: string; // Denormalized for easier display
-  tenantId: string; // UID of the Tenant user
-  tenantEmail: string; // Email used by landlord to identify tenant
+  tenantId?: string; // UID of the Tenant user - MADE OPTIONAL
+  tenantEmail?: string; // Email used by landlord to identify tenant - MADE OPTIONAL
   tenantName?: string; // Denormalized, from tenant's profile or form input
+  tenantRut?: string; // Added RUT to Contract interface as optional
   landlordId: string; // UID of the Landlord user
   landlordName?: string; // Denormalized, from landlord's profile
   startDate: string; // ISO date string
@@ -48,6 +49,7 @@ export interface Contract {
   paymentDay?: number; // Día del mes para el pago (1-31), opcional
   status: ContractStatus;
   terms?: string; // Additional contract terms
+  commonExpensesIncluded?: "si" | "no" | "no aplica"; // Added common expenses to Contract interface as optional
   createdAt: string; // ISO date string
   updatedAt?: string; // ISO date string for when the contract was last updated
   initialPropertyStateStatus?: InitialPropertyStateStatus;

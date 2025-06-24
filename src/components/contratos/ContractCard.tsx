@@ -1,11 +1,10 @@
-
 "use client";
 
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { Contract, UserRole, InitialPropertyStateStatus } from "@/types";
-import { Eye, CheckCircle2, XCircle, Edit3, FileText, CalendarDays, User, Building, ShieldCheck, Receipt, Archive } from "lucide-react";
+import { Eye, CheckCircle2, XCircle, Edit3, FileText, CalendarDays, User, Building, ShieldCheck, Receipt, Archive, Trash2 } from "lucide-react";
 
 interface ContractCardProps {
   contract: Contract;
@@ -16,6 +15,7 @@ interface ContractCardProps {
   onManage?: (contract: Contract) => void; // Landlord action
   onDeclareInitialState?: (contract: Contract) => void;
   onReviewInitialState?: (contract: Contract) => void;
+  onDelete?: (contract: Contract) => void; // New: Landlord action to delete contract
 }
 
 export function ContractCard({
@@ -26,7 +26,8 @@ export function ContractCard({
   onReject,
   onManage,
   onDeclareInitialState,
-  onReviewInitialState
+  onReviewInitialState,
+  onDelete // New prop
 }: ContractCardProps) {
 
   const getStatusVariant = (status: Contract["status"]) => {
@@ -160,6 +161,11 @@ export function ContractCard({
         {showReviewInitialStateButton && onReviewInitialState && (
            <Button variant="secondary" size="sm" onClick={() => onReviewInitialState(contract)}>
             <Archive className="h-4 w-4 mr-1" /> Revisar Estado Inicial
+          </Button>
+        )}
+        {userRole?.toLowerCase() === "arrendador" && onDelete && (
+          <Button variant="destructive" size="sm" onClick={() => onDelete(contract)}>
+            <Trash2 className="h-4 w-4 mr-1" /> Eliminar Contrato
           </Button>
         )}
       </CardFooter>
