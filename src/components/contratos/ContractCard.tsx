@@ -5,11 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { Contract, UserRole, InitialPropertyStateStatus } from "@/types";
 import { Eye, CheckCircle2, XCircle, Edit3, FileText, CalendarDays, User, Building, ShieldCheck, Receipt, Archive, Trash2 } from "lucide-react";
+import { ContractDetailDialog } from "./ContractDetailDialog"; // NEW: Import ContractDetailDialog
+import { useState } from "react"; // NEW: Import useState
 
 interface ContractCardProps {
   contract: Contract;
   userRole: UserRole | null;
-  onViewDetails: (contract: Contract) => void;
+  // Removed onViewDetails from props, now handled internally
   onApprove?: (contract: Contract) => void; // Tenant action
   onReject?: (contract: Contract) => void; // Tenant action
   onManage?: (contract: Contract) => void; // Landlord action
@@ -21,7 +23,7 @@ interface ContractCardProps {
 export function ContractCard({
   contract,
   userRole,
-  onViewDetails,
+  // Removed onViewDetails from destructuring
   onApprove,
   onReject,
   onManage,
@@ -29,6 +31,7 @@ export function ContractCard({
   onReviewInitialState,
   onDelete // New prop
 }: ContractCardProps) {
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false); // NEW: State for detail dialog
 
   const getStatusVariant = (status: Contract["status"]) => {
     switch (status?.toLowerCase()) {
@@ -75,7 +78,6 @@ export function ContractCard({
   const contractStatusLower = contract.status?.toLowerCase();
   const initialStatusLower = contract.initialPropertyStateStatus?.toLowerCase();
 
-  // Simplified condition for showing "Declare Initial State" button
   const showDeclareInitialStateButton = 
     userRole?.toLowerCase() === "arrendador" &&
     (contractStatusLower === "activo" || contractStatusLower === "pendiente") &&
@@ -86,7 +88,6 @@ export function ContractCard({
   const showReviewInitialStateButton = 
     userRole?.toLowerCase() === "inquilino" &&
     initialStatusLower === "pendiente_inquilino";
-
 
   return (
     <Card className="shadow-md hover:shadow-lg transition-shadow duration-300 flex flex-col">
@@ -135,7 +136,7 @@ export function ContractCard({
         )}
       </CardContent>
       <CardFooter className="flex flex-wrap justify-end gap-2 bg-muted/30 p-4 mt-auto">
-        <Button variant="outline" size="sm" onClick={() => onViewDetails(contract)}>
+        <Button variant="outline" size="sm" onClick={() => setIsDetailDialogOpen(true)}> {/* NEW: Open dialog on click */}
           <Eye className="h-4 w-4 mr-1" /> Detalles
         </Button>
         {userRole?.toLowerCase() === "inquilino" && contract.status?.toLowerCase() === "pendiente" && onApprove && onReject && (
@@ -169,8 +170,13 @@ export function ContractCard({
           </Button>
         )}
       </CardFooter>
+
+      {/* NEW: ContractDetailDialog component */}
+      <ContractDetailDialog
+        open={isDetailDialogOpen}
+        onOpenChange={setIsDetailDialogOpen}
+        contract={contract}
+      />
     </Card>
   );
 }
-
-    
