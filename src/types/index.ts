@@ -1,5 +1,3 @@
-
-
 export type UserRole = "Arrendador" | "Inquilino";
 
 export interface UserProfile {
@@ -19,216 +17,136 @@ export interface Property {
   description: string;
   ownerId: string; // UID of the Arrendador
   imageUrl?: string;
-  price?: number; // Monthly rent
-  bedrooms?: number;
-  bathrooms?: number;
-  area?: number; // Square meters/feet
-  potentialTenantEmail?: string; // Email of a potential tenant, optional
-  createdAt?: string; // ISO date string from Timestamp
-  updatedAt?: string; // ISO date string from Timestamp
+  potentialTenantEmail?: string; // NEW: optional field for potential tenant email
+  // Add other property details as needed, e.g., square meters, number of rooms, etc.
 }
 
-export type ContractStatus = "Pendiente" | "Aprobado" | "Rechazado" | "Activo" | "Finalizado";
-
+export type ContractStatus = "pendiente" | "aprobado" | "activo" | "rechazado" | "finalizado";
 export type InitialPropertyStateStatus = "no_declarado" | "pendiente_inquilino" | "aceptado_inquilino" | "rechazado_inquilino";
 
+export interface ContractObservation {
+  id: string; // Unique ID for each observation/response
+  type: "observation" | "response";
+  fromUserId: string;
+  fromUserName: string;
+  fromUserRole: UserRole;
+  text: string;
+  createdAt: string; // ISO date string
+}
+
 export interface Contract {
-  id: string; // Firestore document ID
+  id: string;
   propertyId: string;
   propertyName?: string; // Denormalized for easier display
-  tenantId?: string; // UID of the Tenant user - MADE OPTIONAL
-  tenantEmail?: string; // Email used by landlord to identify tenant - MADE OPTIONAL
-  tenantName?: string; // Denormalized, from tenant's profile or form input
-  tenantRut?: string; // Added RUT to Contract interface as optional
-  landlordId: string; // UID of the Landlord user
-  landlordName?: string; // Denormalized, from landlord's profile
+  propertyAddress?: string; // Denormalized for easier display
+  propertyRolAvaluo?: string; // NEW: Rol de Avalúo Fiscal
+  propertyCBRFojas?: string; // NEW: Foja de inscripción CBR
+  propertyCBRNumero?: string; // NEW: Número de inscripción CBR
+  propertyCBRAno?: number; // NEW: Año de inscripción CBR
+  
+  tenantId?: string; // UID of the Inquilino, once matched
+  tenantEmail: string;
+  tenantName?: string; // Denormalized
+  tenantRut?: string; // NEW: RUT del Inquilino
+  tenantNationality?: string; // NEW: Nacionalidad del Inquilino
+  tenantCivilStatus?: string; // NEW: Estado Civil del Inquilino
+  tenantProfession?: string; // NEW: Profesión u Oficio del Inquilino
+  tenantAddressForNotifications?: string | null; // NEW: Domicilio para notificaciones
+
+  landlordId: string; // UID of the Arrendador
+  landlordName?: string; // Denormalized
+  landlordEmail?: string; // Denormalized
+
   startDate: string; // ISO date string
   endDate: string; // ISO date string
   rentAmount: number;
-  securityDepositAmount?: number; // Monto de la garantía, opcional
-  paymentDay?: number; // Día del mes para el pago (1-31), opcional
+  securityDepositAmount?: number; // Monto de la garantía
+  commonExpensesIncluded?: "si" | "no" | "no aplica"; // NEW: Gastos Comunes Incluidos
+  paymentDay?: number; // Day of the month for payment (1-31)
+  terms?: string; // Additional terms and conditions
+  
   status: ContractStatus;
-  terms?: string; // Additional contract terms
-  commonExpensesIncluded?: "si" | "no" | "no aplica"; // Added common expenses to Contract interface as optional
+  initialPropertyStateStatus?: InitialPropertyStateStatus; // Estado de la declaración inicial de la propiedad
+
+  createdBy: string; // UID of the user who created the contract (usually landlord)
   createdAt: string; // ISO date string
-  updatedAt?: string; // ISO date string for when the contract was last updated
-  initialPropertyStateStatus?: InitialPropertyStateStatus;
-  initialPropertyStateId?: string; // ID of the document in the subcollection
+  approvedAt?: string; // ISO date string
+  rejectedAt?: string; // ISO date string
+  terminatedAt?: string; // ISO date string, if contract ends prematurely
+  
+  existingContractUrl?: string;
+  existingContractFileName?: string;
+
+  // NEW: Field for contract observations and responses
+  observations?: ContractObservation[];
 }
 
-export type PaymentType = "arriendo" | "gastos comunes" | "reparaciones" | "otros";
-export type PaymentStatus = "pendiente" | "aceptado";
-
-export interface Payment {
-  id: string; // Firestore document ID
+export interface Incident {
+  id: string;
   contractId: string;
-  propertyId: string; // Denormalized from contract for easier querying by landlord
-  propertyName?: string; // Denormalized from contract
+  propertyId: string;
+  propertyName?: string;
   tenantId: string;
-  tenantName?: string; // Denormalized
+  tenantName?: string;
   landlordId: string;
-  landlordName?: string; // Denormalized
-  type: PaymentType;
-  amount: number;
-  paymentDate: string; // ISO string, date of the payment itself
-  notes?: string;
-  status: PaymentStatus;
-  declaredAt: string; // ISO string, when tenant declared the payment
-  acceptedAt?: string; // ISO string, when landlord accepted the payment
-  declaredBy: string; // UID of tenant who declared
-  attachmentUrl?: string; // Optional URL for payment proof
-  isOverdue?: boolean; // True if paymentDate's day > contract.paymentDay
-}
-
-export interface IncidentResponse {
-  responseText: string;
-  responseAttachmentUrl?: string;
-  respondedAt: string; // ISO date string
-  respondedBy: string; // UID of the user who responded
+  landlordName?: string;
+  type: IncidentType;
+  description: string;
+  status: IncidentStatus;
+  createdBy: string;
+  createdAt: string; // ISO date string
+  initialAttachmentUrl?: string; // URL of the initial attachment
+  initialAttachmentName?: string; // Name of the initial attachment
+  responses: IncidentResponse[];
+  respondedAt?: string; // ISO date string
+  closedAt?: string; // ISO date string
+  closedBy?: string; // UID of user who closed it
 }
 
 export type IncidentType = "pago" | "cuidado de la propiedad" | "ruidos molestos" | "reparaciones necesarias" | "incumplimiento de contrato" | "otros";
 export type IncidentStatus = "pendiente" | "respondido" | "cerrado";
 
-export interface Incident {
-  id: string; // Firestore document ID
+export interface IncidentResponse {
+  responseText: string;
+  respondedAt: string; // ISO date string
+  respondedBy: string; // UID of user who responded
+  responseAttachmentUrl?: string; // URL of the response attachment
+  responseAttachmentName?: string; // Name of the response attachment
+}
+
+export interface Payment {
+  id: string;
   contractId: string;
-  propertyId: string; 
-  propertyName: string; 
-  landlordId: string; 
-  landlordName?: string;
-  tenantId: string; 
-  tenantName?: string;
-  
-  type: IncidentType;
-  status: IncidentStatus;
-  
-  // Initial Report
-  description: string; 
-  initialAttachmentUrl?: string; 
-  createdAt: string; 
-  createdBy: string; 
-
-  responses: IncidentResponse[];
-  
-  // Closure
-  closedAt?: string;
-  closedBy?: string; 
+  propertyId: string;
+  propertyName?: string; // Denormalized
+  tenantId: string;
+  tenantName?: string; // Denormalized
+  landlordId: string;
+  landlordName?: string; // Denormalized
+  type: string; // Ej. "arriendo", "gastos comunes", "reparación"
+  amount: number;
+  paymentDate: string; // ISO date string or YYYY-MM-DD string
+  notes?: string; // Any additional notes from the tenant
+  status: "pendiente" | "aceptado";
+  declaredBy: string; // UID of the user who declared the payment
+  declaredAt: string; // ISO date string
+  acceptedAt?: string; // ISO date string, if accepted by landlord
+  attachmentUrl?: string; // URL del comprobante de pago
+  isOverdue?: boolean; // NEW: Indicates if payment was declared past due date
 }
-
-export interface EvaluationCriteria {
-  paymentPunctuality: number; // 1-5
-  propertyCare: number; // 1-5
-  communication: number; // 1-5
-  generalBehavior: number; // 1-5
-}
-
-export type EvaluationStatus = "pendiente de confirmacion" | "recibida";
 
 export interface Evaluation {
-  id: string; // Firestore document ID
+  id: string;
+  tenantId: string;
   contractId: string;
-  propertyId: string; // Denormalized from contract
-  propertyName?: string; // Denormalized from contract
-  landlordId: string; // UID of the Landlord who created the evaluation
-  landlordName?: string; // Denormalized
-  tenantId: string; // UID of the Tenant being evaluated
-  tenantName?: string; // Denormalized
-  criteria: EvaluationCriteria;
-  evaluationDate: string; // ISO date string, when the evaluation was submitted by landlord
-  status: EvaluationStatus;
-  tenantComment?: string; // Optional comment from the tenant upon confirmation
-  tenantConfirmedAt?: string; // ISO date string, when the tenant confirmed receipt
-  overallRating?: number; // Optional: can be calculated average
-}
-
-// For Tenant Certificate
-export interface TenantRentalHistory {
-  contractId: string;
-  propertyAddress: string;
-  startDate: string;
-  endDate: string;
-  landlordName: string;
-}
-
-export interface TenantEvaluationsSummary {
-  averagePunctuality: number | null;
-  averagePropertyCare: number | null;
-  averageCommunication: number | null;
-  averageGeneralBehavior: number | null;
-  overallAverage: number | null;
-  evaluations: Evaluation[]; // To list individual comments if needed
-}
-
-export interface TenantPaymentsSummary {
-  totalPaymentsDeclared: number;
-  totalPaymentsAccepted: number;
-  totalAmountAccepted: number;
-  compliancePercentage: number | null;
-  totalOverduePayments: number;
-  overduePaymentsPercentage: number | null;
-}
-
-export interface TenantIncidentsSummary {
-  totalIncidentsInvolved: number; // Incidents where tenant is involved (created by or for them on their contracts)
-  incidentsReportedByTenant: number;
-  incidentsReceivedByTenant: number;
-  incidentsResolved: number; // (status 'cerrado')
-}
-
-export interface TenantCertificateData {
-  tenantProfile: UserProfile;
-  rentalHistory: TenantRentalHistory[];
-  evaluationsSummary: TenantEvaluationsSummary;
-  paymentsSummary: TenantPaymentsSummary;
-  incidentsSummary: TenantIncidentsSummary;
-  globalScore: number | null; // e.g., 1-10 or 1-5 stars
-  generationDate: string;
-  certificateId: string; // Unique ID for this generated certificate instance
-}
-
-// --- Initial Property State Types ---
-export interface FileAttachmentInfo {
-  name: string;
-  type?: string; // e.g., 'image/jpeg', 'application/pdf'
-  url?: string; // To be filled after upload to Firebase Storage
-  uploadedAt?: string; // ISO string
-  uploadedBy?: string; // UID of user who uploaded
-}
-
-export interface InitialPropertyStateObservation {
-  id: string; // Unique ID for the observation, e.g., generated by uuid
-  roomName: string;
-  description: string;
-  attachments?: FileAttachmentInfo[];
-}
-
-export interface InitialPropertyState {
-  id: string; // Firestore document ID for this state declaration
-  contractId: string; // Associated contract
-  propertyId: string; // Associated property
-  generalDescription: string;
-  observations: InitialPropertyStateObservation[];
-  attachments?: FileAttachmentInfo[]; // General attachments for the overall state
-  declaredByLandlordAt: string; // ISO string, when landlord submitted
   landlordId: string;
-  status: InitialPropertyStateStatus;
-  // Fields for tenant response
-  tenantId?: string;
-  respondedByTenantAt?: string; // ISO string, when tenant responded
-  tenantAgreed?: boolean; // True if tenant accepted, false if rejected
-  tenantComments?: string; // If tenant rejected or had comments
-  tenantAttachments?: FileAttachmentInfo[]; // Additional attachments from tenant
-}
-
-// For File Uploads
-export interface UploadedFile {
-  id: string; // Firestore document ID
-  userId: string; // UID of the user who uploaded
-  fileName: string; // Original name of the file
-  downloadURL: string; // URL from Firebase Storage
-  storagePath: string; // Path in Firebase Storage (e.g., uploads/userId/fileName)
-  contentType?: string; // MIME type of the file
-  size?: number; // Size of the file in bytes
-  uploadedAt: string; // ISO date string from Firestore Timestamp
+  createdAt: string;
+  period: string; // E.g., "Q1 2023", "Mayo 2023"
+  criteria: {
+    paymentPunctuality: number; // 1-5
+    propertyCare: number; // 1-5
+    communication: number; // 1-5
+    generalBehavior: number; // 1-5
+  };
+  comments?: string;
 }

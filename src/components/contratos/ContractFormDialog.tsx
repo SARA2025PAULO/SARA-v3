@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Mail, ShieldCheck, Receipt, Home, Landmark, User2 } from "lucide-react";
+import { CalendarIcon, Mail, ShieldCheck, Receipt, Home, Landmark, User2, Paperclip } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Contract, Property } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
@@ -23,6 +23,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { collection, query, where, limit, getDocs, } from "firebase/firestore";
 import { db } from "@/lib/firebase"; 
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 // Regex para validar el formato de RUT chileno (ej: 12.345.678-9 o 1.234.567-K)
 const rutRegex = /^\d{1,2}\.\d{3}\.\d{3}-[0-9Kk]$/;
@@ -67,6 +68,11 @@ const contractFormSchema = z.object({
   propertyCBRAno: z.number({
     invalid_type_error: "Ingresa un año válido para la inscripción.",
   }).int().min(1900).max(new Date().getFullYear()).optional().nullable().or(z.literal('')),
+
+  // NEW: Field for existing contract file upload
+  existingContract: z
+    .custom<FileList>((val) => val instanceof FileList, "Se esperaba un archivo")
+    .optional(),
 });
 
 export type ContractFormValues = z.infer<typeof contractFormSchema>;
@@ -75,7 +81,7 @@ interface ContractFormDialogProps {
   contract?: Contract;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (values: ContractFormValues, isEditing: boolean, contractId?: string) => void;
+  onSave: (values: ContractFormValues & { existingContractUrl: string | null; existingContractFileName: string | null; }, isEditing: boolean, contractId?: string) => void;
   availableProperties: Property[];
 }
 
@@ -87,6 +93,7 @@ export function ContractFormDialog({ contract, open, onOpenChange, onSave, avail
 
   const [isStartDatePickerOpen, setIsStartDatePickerOpen] = useState(false);
   const [isEndDatePickerOpen, setIsEndDatePickerOpen] = useState(false);
+  const [selectedExistingContractFileName, setSelectedExistingContractFileName] = useState<string | null>(null); // NEW state for existing contract file name
 
 
   const form = useForm<ContractFormValues>({
@@ -111,6 +118,8 @@ export function ContractFormDialog({ contract, open, onOpenChange, onSave, avail
       propertyCBRFojas: contract.propertyCBRFojas || "",
       propertyCBRNumero: contract.propertyCBRNumero || "",
       propertyCBRAno: contract.propertyCBRAno ?? undefined,
+      // NEW: Set default for existing contract file
+      existingContract: undefined, // Files can't be set as default via react-hook-form directly
     } : {
       propertyId: "",
       tenantEmail: "",
@@ -131,6 +140,8 @@ export function ContractFormDialog({ contract, open, onOpenChange, onSave, avail
       propertyCBRFojas: "",
       propertyCBRNumero: "",
       propertyCBRAno: undefined,
+      // NEW: Set default for existing contract file
+      existingContract: undefined,
     },
   });
 
@@ -167,6 +178,8 @@ export function ContractFormDialog({ contract, open, onOpenChange, onSave, avail
         propertyCBRFojas: contract.propertyCBRFojas || "",
         propertyCBRNumero: contract.propertyCBRNumero || "",
         propertyCBRAno: contract.propertyCBRAno ?? undefined,
+        // NEW: Reset existing contract file state and form field
+        existingContract: undefined,
       } : {
         propertyId: "",
         tenantEmail: "",
@@ -187,7 +200,11 @@ export function ContractFormDialog({ contract, open, onOpenChange, onSave, avail
         propertyCBRFojas: "",
         propertyCBRNumero: "",
         propertyCBRAno: undefined,
+        // NEW: Reset existing contract file state and form field
+        existingContract: undefined,
       });
+      // Reset the selected file name when dialog opens or contract changes
+      setSelectedExistingContractFileName(contract?.existingContractFileName || null);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [contract, open]);
@@ -199,6 +216,33 @@ export function ContractFormDialog({ contract, open, onOpenChange, onSave, avail
       return;
     }
 
+    let existingContractUrl: string | null = null;
+    let existingContractFileName: string | null = null;
+
+    // NEW: Handle existing contract file upload
+    if (values.existingContract && values.existingContract.length > 0) {
+      const file = values.existingContract[0];
+      existingContractFileName = file.name; // Use the actual file name
+      const storage = getStorage();
+      // Using a generic ID for the path for now, will refine once contract ID is known on creation
+      const uploadPath = `existing_contracts/${values.propertyId}/${Date.now()}_${existingContractFileName}`;
+      const storageRef = ref(storage, uploadPath);
+      try {
+        const metadata = { contentDisposition: `attachment; filename="${existingContractFileName}"` };
+        const snapshot = await uploadBytes(storageRef, file, metadata);
+        existingContractUrl = await getDownloadURL(snapshot.ref);
+        toast({ title: "Archivo Adjunto", description: "Contrato existente subido exitosamente." });
+      } catch (error) {
+        console.error("Error al subir el contrato existente:", error);
+        toast({
+          title: "Error al adjuntar contrato",
+          description: "No se pudo subir el archivo del contrato existente. Inténtalo de nuevo.",
+          variant: "destructive",
+        });
+        return; // Stop form submission if upload fails
+      }
+    }
+
     const cleanedValues: ContractFormValues = {
       ...values,
       securityDepositAmount: values.securityDepositAmount === '' ? undefined : values.securityDepositAmount,
@@ -207,7 +251,11 @@ export function ContractFormDialog({ contract, open, onOpenChange, onSave, avail
       tenantAddressForNotifications: values.tenantAddressForNotifications === '' ? null : values.tenantAddressForNotifications,
     };
 
-    onSave(cleanedValues, isEditing, isEditing ? contract.id : undefined);
+    await onSave({
+      ...cleanedValues,
+      existingContractUrl: existingContractUrl,
+      existingContractFileName: existingContractFileName,
+    }, isEditing, isEditing ? contract.id : undefined);
 
     onOpenChange(false);
     try {
@@ -603,6 +651,39 @@ export function ContractFormDialog({ contract, open, onOpenChange, onSave, avail
                 </FormItem>
               )}
             />
+
+            {/* NEW: Adjuntar Contrato Existente */}
+            <h3 className="text-lg font-semibold flex items-center mt-6"><Paperclip className="h-5 w-5 mr-2 text-primary"/>Adjuntar Contrato Existente (Opcional)</h3>
+            <FormField
+              control={form.control}
+              name="existingContract"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="flex items-center">
+                    {selectedExistingContractFileName
+                      ? `Archivo seleccionado: ${selectedExistingContractFileName}`
+                      : "Selecciona un archivo PDF del contrato existente"}
+                  </FormLabel>
+                  <FormControl>
+                    <input
+                      type="file"
+                      accept=".pdf"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      onChange={(e) => {
+                        const files = e.target.files;
+                        const fileName = files?.[0]?.name || null;
+                        setSelectedExistingContractFileName(fileName);
+                        field.onChange(files || undefined);
+                      }}
+                      ref={field.ref}
+                    />
+                  </FormControl>
+                  <FormDescription>Adjunta el contrato de arrendamiento firmado (solo PDF).</FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
             <DialogFooter className="pt-4">
               <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
               <Button type="submit" disabled={form.formState.isSubmitting}>

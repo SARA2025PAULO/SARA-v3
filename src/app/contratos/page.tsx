@@ -6,7 +6,9 @@
       import { ContractFormDialog } from "@/components/contratos/ContractFormDialog";
       import type { ContractFormValues } from "@/components/contratos/ContractFormDialog";
       import { ContractApprovalDialog } from "@/components/contratos/ContractApprovalDialog";
-      import type { Contract, Property, UserProfile } from "@/types";
+      import { ContractObservationDialog } from "@/components/contratos/ContractObservationDialog";
+      import { ContractDetailDialog } from "@/components/contratos/ContractDetailDialog"; // CORRECTED: Changed '=>' to 'from'
+      import type { Contract, Property, UserProfile, ContractObservation, Announcement } from "@/types";
       import { PlusCircle, FileText, Search } from "lucide-react";
       import { useAuth } from "@/contexts/AuthContext";
       import { useToast } from "@/hooks/use-toast";
@@ -26,7 +28,8 @@
         limit,
         deleteDoc,
         or,
-        and // Import 'and'
+        and,
+        arrayUnion
       } from "firebase/firestore";
       import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
       
@@ -51,8 +54,33 @@
         const [contractToDelete, setContractToDelete] = useState<Contract | null>(null);
         const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
 
+        const [isObservationDialogOpen, setIsObservationDialogOpen] = useState(false);
+        const [contractToObserve, setContractToObserve] = useState<Contract | null>(null);
+
+        const [contractToDisplayDetailsId, setContractToDisplayDetailsId] = useState<string | null>(null);
+        
+        const [isRespondingToObservation, setIsRespondingToObservation] = useState(false); 
+
         const [searchTerm, setSearchTerm] = useState("");
         const [statusFilter, setStatusFilter] = useState<"todos" | Contract["status"]>("todos");
+
+        // NEW: Helper function to create an announcement
+        const createAnnouncement = async (recipientId: string, title: string, message: string, link: string) => {
+          if (!db) return;
+          try {
+            const newAnnouncement: Announcement = {
+              recipientId,
+              title,
+              message,
+              link,
+              read: false,
+              createdAt: serverTimestamp(),
+            };
+            await addDoc(collection(db, "announcements"), newAnnouncement);
+          } catch (error) {
+            console.error("Error creating announcement:", error);
+          }
+        };
       
         const fetchLandlordProperties = useCallback(async () => {
           if (currentUser && currentUser.role === "Arrendador" && db) {
@@ -88,7 +116,7 @@
                   where("tenantId", "==", currentUser.uid),
                   and(
                     where("tenantEmail", "==", currentUser.email),
-                    where("status", "==", "Pendiente")
+                    where("status", "==", "pendiente")
                   )
                 ),
                 orderBy("createdAt", "desc")
@@ -104,12 +132,19 @@
               return {
                 id: docSnap.id,
                 ...data,
-                startDate: data.startDate, 
-                endDate: data.endDate,
+                startDate: data.startDate?.toDate ? data.startDate.toDate().toISOString() : data.startDate,
+                endDate: data.endDate?.toDate ? data.endDate.toDate().toISOString() : data.endDate,
                 createdAt: data.createdAt?.toDate ? data.createdAt.toDate().toISOString() : data.createdAt,
                 updatedAt: data.updatedAt?.toDate ? data.updatedAt.toDate().toISOString() : data.updatedAt,
+                approvedAt: data.approvedAt?.toDate ? data.approvedAt.toDate().toISOString() : data.approvedAt,
+                rejectedAt: data.rejectedAt?.toDate ? data.rejectedAt.toDate().toISOString() : data.rejectedAt,
+                terminatedAt: data.terminatedAt?.toDate ? data.terminatedAt.toDate().toISOString() : data.terminatedAt,
+
                 securityDepositAmount: data.securityDepositAmount,
                 paymentDay: data.paymentDay,
+                existingContractUrl: data.existingContractUrl || undefined,
+                existingContractFileName: data.existingContractFileName || undefined,
+                observations: data.observations || [], 
               } as Contract;
             });
             setContracts(fetchedContracts);
@@ -128,7 +163,7 @@
           }
         }, [currentUser, fetchContracts, fetchLandlordProperties]);
       
-        const handleSaveContract = async (values: ContractFormValues, isEditingFlag: boolean, originalContractId?: string) => {
+        const handleSaveContract = async (values: ContractFormValues & { existingContractUrl: string | null; existingContractFileName: string | null; }, isEditingFlag: boolean, originalContractId?: string) => {
           if (!currentUser || currentUser.role !== "Arrendador" || !db) {
             toast({ title: "Error de Permiso", description: "Acción no permitida.", variant: "destructive" });
             return;
@@ -148,8 +183,6 @@
               tenantProfile = tenantDoc.data() as UserProfile;
               tenantUid = tenantDoc.id;
             } else {
-              // If tenant not found, proceed without tenantId initially.
-              // The notification logic will handle inviting them.
               toast({ title: "Inquilino no Encontrado", description: `No se encontró un inquilino registrado con el rol correcto para el correo: ${values.tenantEmail}. El contrato se creará como Pendiente y se enviará una invitación.`, variant: "default" });
             }
             
@@ -161,15 +194,27 @@
                 return;
             }
       
-            const contractData: Omit<Contract, 'id' | 'createdAt' | 'updatedAt'> & { createdAt?: any, updatedAt: any } = {
+            const contractData: Omit<Contract, 'id' | 'createdAt' | 'updatedAt' | 'observations'> & { createdAt?: any, updatedAt: any, observations?: any[] } = {
               propertyId: values.propertyId,
               propertyName: selectedProperty.address,
-              tenantId: tenantUid, // tenantUid might be undefined if tenant not found
+              propertyAddress: selectedProperty.address,
+              propertyRolAvaluo: values.propertyRolAvaluo,
+              propertyCBRFojas: values.propertyCBRFojas,
+              propertyCBRNumero: values.propertyCBRNumero,
+              propertyCBRAno: values.propertyCBRAno,
+
+              tenantId: tenantUid, 
               tenantEmail: values.tenantEmail,
-              tenantName: tenantProfile?.displayName || values.tenantName, // Use tenantProfile.displayName if available, else from form
+              tenantName: tenantProfile?.displayName || values.tenantName, 
               tenantRut: values.tenantRut,
+              tenantNationality: values.tenantNationality,
+              tenantCivilStatus: values.tenantCivilStatus,
+              tenantProfession: values.tenantProfession,
+              tenantAddressForNotifications: values.tenantAddressForNotifications,
+
               landlordId: currentUser.uid,
               landlordName: currentUser.displayName,
+              landlordEmail: currentUser.email,
               startDate: values.startDate.toISOString(),
               endDate: values.endDate.toISOString(),
               rentAmount: values.rentAmount,
@@ -177,24 +222,34 @@
               commonExpensesIncluded: values.commonExpensesIncluded,
               paymentDay: values.paymentDay === '' || values.paymentDay === undefined ? undefined : Number(values.paymentDay),
               terms: values.terms || "",
-              status: isEditingFlag && editingContract ? editingContract.status : "Pendiente",
+              status: isEditingFlag && editingContract ? editingContract.status : "pendiente", 
               updatedAt: serverTimestamp(),
+              existingContractUrl: values.existingContractUrl,
+              existingContractFileName: values.existingContractFileName,
+              observations: isEditingFlag && editingContract?.observations ? editingContract.observations : [],
             };
             
-            // Remove undefined fields before saving to Firestore to avoid storing 'undefined'
             const cleanedContractData = Object.fromEntries(
-              Object.entries(contractData).filter(([_, v]) => v !== undefined)
+              Object.entries(contractData).filter(([_, v]) => v !== undefined && v !== null && v !== '')
             );
       
             if (isEditingFlag && originalContractId) {
               const contractDocRef = doc(db, "contracts", originalContractId);
               await updateDoc(contractDocRef, cleanedContractData);
               toast({ title: "Contrato Actualizado", description: `El contrato para ${selectedProperty.address} ha sido guardado.` });
+              // NEW: Create announcement for updated contract
+              if (tenantUid) {
+                createAnnouncement(tenantUid, "Contrato Actualizado", `El arrendador ha actualizado el contrato de ${selectedProperty.address}. Revísalo.`, `/contratos`);
+              }
             } else {
               const finalContractData = { ...cleanedContractData, createdAt: serverTimestamp() };
-              // Save the contract to the root 'contracts' collection
               const docRef = await addDoc(collection(db, "contracts"), finalContractData);
               toast({ title: "Contrato Creado", description: `Nuevo contrato para ${selectedProperty.address} está ${contractData.status}.` });
+              // NEW: Create announcement for new contract
+              createAnnouncement(currentUser.uid, "Contrato Creado", `Has creado un nuevo contrato para ${selectedProperty.address}.`, `/contratos`);
+              if (tenantUid) {
+                createAnnouncement(tenantUid, "Nuevo Contrato Disponible", `Tienes un nuevo contrato pendiente de revisión para ${selectedProperty.address}.`, `/contratos`);
+              }
             }
             
             fetchContracts(); 
@@ -209,17 +264,114 @@
           }
         };
       
+        const handleSaveObservation = async (contractId: string, observationText: string) => {
+          if (!currentUser || !db || !currentUser.role || !currentUser.displayName) {
+            toast({ title: "Error", description: "Usuario no autenticado o rol/nombre no disponible.", variant: "destructive" });
+            return;
+          }
+          setIsSubmitting(true);
+          try {
+            const contractRef = doc(db, "contracts", contractId);
+            const newObservation: ContractObservation = {
+              id: Date.now().toString(), 
+              type: "observation",
+              fromUserId: currentUser.uid,
+              fromUserName: currentUser.displayName,
+              fromUserRole: currentUser.role,
+              text: observationText,
+              createdAt: new Date().toISOString(),
+            };
+      
+            await updateDoc(contractRef, {
+              observations: arrayUnion(newObservation), 
+              updatedAt: serverTimestamp(), 
+            });
+      
+            toast({ title: "Observación Enviada", description: "Tu observación ha sido agregada al contrato.", variant: "success" });
+            fetchContracts(); 
+            setIsObservationDialogOpen(false);
+            setContractToObserve(null);
+            
+            // NEW: Create announcement for landlord about the new observation
+            const observedContract = contracts.find(c => c.id === contractId); // Find the contract to get landlordId
+            if (observedContract?.landlordId) {
+              createAnnouncement(observedContract.landlordId, "Nueva Observación en Contrato", `El inquilino ha hecho una observación en el contrato de ${observedContract.propertyName}.`, `/contratos`);
+            }
+
+            if (contractToDisplayDetailsId) {
+              const updatedContract = contracts.find(c => c.id === contractToDisplayDetailsId); 
+              if (updatedContract) {
+                setContractToDisplayDetailsId(updatedContract.id); 
+              }
+            }
+          } catch (error) {
+            console.error("Error saving observation:", error);
+            toast({ title: "Error al Enviar Observación", description: "No se pudo guardar tu observación.", variant: "destructive" });
+          } finally {
+            setIsSubmitting(false);
+          }
+        };
+
+        const handleRespondToContractObservation = async (contractId: string, responseText: string) => {
+          if (!currentUser || !db || !currentUser.role || !currentUser.displayName) {
+            toast({ title: "Error", description: "Usuario no autenticado o rol/nombre no disponible.", variant: "destructive" });
+            return;
+          }
+          setIsRespondingToObservation(true); 
+          try {
+            const contractRef = doc(db, "contracts", contractId);
+            const newResponse: ContractObservation = {
+              id: Date.now().toString(), 
+              type: "response",
+              fromUserId: currentUser.uid,
+              fromUserName: currentUser.displayName,
+              fromUserRole: currentUser.role,
+              text: responseText,
+              createdAt: new Date().toISOString(),
+            };
+      
+            await updateDoc(contractRef, {
+              observations: arrayUnion(newResponse), 
+              updatedAt: serverTimestamp(), 
+            });
+      
+            toast({ title: "Respuesta Enviada", description: "Tu respuesta ha sido agregada al contrato.", variant: "success" });
+            fetchContracts(); 
+            
+            // NEW: Create announcement for tenant about the response
+            const respondedContract = contracts.find(c => c.id === contractId);
+            if (respondedContract?.tenantId) {
+              createAnnouncement(respondedContract.tenantId, "Respuesta a Observación de Contrato", `El arrendador ha respondido a tu observación en el contrato de ${respondedContract.propertyName}.`, `/contratos`);
+            }
+
+            if (contractToDisplayDetailsId) {
+              const updatedContract = contracts.find(c => c.id === contractToDisplayDetailsId); 
+              if (updatedContract) {
+                setContractToDisplayDetailsId(updatedContract.id); 
+              }
+            }
+          } catch (error) {
+            console.error("Error saving response:", error);
+            toast({ title: "Error al Enviar Respuesta", description: "No se pudo guardar tu respuesta.", variant: "destructive" });
+          } finally {
+            setIsRespondingToObservation(false); 
+          }
+        };
+
         const handleApprovalAction = async (contractId: string, newStatus: "Activo" | "Rechazado") => {
           if (!db || !currentUser) return;
           setIsSubmitting(true);
           try {
             const contractDocRef = doc(db, "contracts", contractId);
-            const updateData: { status: "Activo" | "Rechazado", updatedAt: any, tenantId?: string } = {
+            const updateData: { status: "Activo" | "Rechazado", updatedAt: any, approvedAt?: any, rejectedAt?: any, tenantId?: string } = {
               status: newStatus,
               updatedAt: serverTimestamp(),
             };
             if (newStatus === "Activo") {
               updateData.tenantId = currentUser.uid;
+              updateData.approvedAt = serverTimestamp();
+            } else if (newStatus === "Rechazado") {
+              updateData.rejectedAt = serverTimestamp();
             }
             await updateDoc(contractDocRef, updateData);
             toast({ 
@@ -229,6 +381,28 @@
             });
             fetchContracts(); 
             setIsApprovalDialogOpen(false);
+            
+            // NEW: Create announcements for contract approval/rejection
+            const approvedOrRejectedContract = contracts.find(c => c.id === contractId); // Find the contract to get details
+            if (approvedOrRejectedContract) {
+              const message = newStatus === "Activo" ? 
+                `Tu contrato para ${approvedOrRejectedContract.propertyName} ha sido APROBADO.` : 
+                `Tu contrato para ${approvedOrRejectedContract.propertyName} ha sido RECHAZADO.`;
+              const title = newStatus === "Activo" ? "Contrato Aprobado" : "Contrato Rechazado";
+
+              // Announce to tenant
+              if (approvedOrRejectedContract.tenantId) {
+                createAnnouncement(approvedOrRejectedContract.tenantId, title, message, `/contratos`);
+              }
+              // Announce to landlord (who might be current user, or another admin)
+              createAnnouncement(approvedOrRejectedContract.landlordId, title, message, `/contratos`);
+            }
+
+            if (contractToDisplayDetailsId) {
+              setIsDetailDialogOpen(false); 
+              setContractToDisplayDetailsId(null);
+            }
+
           } catch (error) {
             console.error(`Error ${newStatus === "Activo" ? "approving" : "rejecting"} contract:`, error);
             toast({ title: "Error", description: `No se pudo ${newStatus === "Activo" ? "aprobar" : "rechazar"} el contrato.`, variant: "destructive" });
@@ -237,7 +411,6 @@
           }
         };
       
-        // New delete functions
         const openDeleteDialog = (contract: Contract) => {
           setContractToDelete(contract);
           setIsDeleteDialogOpen(true);
@@ -249,7 +422,7 @@
           try {
             await deleteDoc(doc(db, "contracts", contractToDelete.id));
             toast({ title: "Contrato Eliminado", description: `El contrato para ${contractToDelete.propertyName} ha sido eliminado.`, variant: "default" });
-            fetchContracts(); // Refresh the list of contracts
+            fetchContracts(); 
             setIsDeleteDialogOpen(false);
             setContractToDelete(null);
           } catch (error) {
@@ -270,10 +443,28 @@
           setEditingContract(contract || null);
           setIsContractFormOpen(true);
         }
-      
-        const handleViewDetails = (contract: Contract) => {
-          toast({ title: `Detalles Contrato: ${contract.id.substring(0,8)}...`, description: `Propiedad: ${contract.propertyName}. Estado: ${contract.status}. (Funcionalidad de vista detallada pendiente).` });
+
+        const openObservationDialog = (contract: Contract) => {
+          setContractToObserve(contract);
+          setIsObservationDialogOpen(true);
         };
+        
+        const openContractDetailDialog = (contract: Contract) => {
+          setContractToDisplayDetailsId(contract.id); 
+          setIsApprovalDialogOpen(false); 
+          setIsObservationDialogOpen(false); 
+          // Only set this to true if a contract is actually found based on the ID
+          if (contract.id && contracts.find(c => c.id === contract.id)) { // Use contract.id directly for lookup
+            setIsDetailDialogOpen(true);
+          } else { 
+            console.warn("Contract not found in current list for detail display:", contract.id);
+            setIsDetailDialogOpen(false);
+          }
+        };
+
+        const contractToDisplayDetails = contractToDisplayDetailsId 
+          ? contracts.find(c => c.id === contractToDisplayDetailsId)
+          : null;
       
         const filteredContracts = contracts
           .filter(c => statusFilter === "todos" || c.status === statusFilter)
@@ -285,8 +476,7 @@
           
         if (isLoading && contracts.length === 0) return <div className="p-4">Cargando contratos...</div>;
       
-        const contractStatusOptions: (Contract["status"] | "todos")[] = ["todos", "Pendiente", "Activo", "Finalizado", "Rechazado", "Aprobado"];
-      
+        const contractStatusOptions: (Contract["status"] | "todos")[] = ["todos", "pendiente", "activo", "finalizado", "rechazado", "aprobado"]; 
       
         return (
           <div className="space-y-6">
@@ -343,11 +533,12 @@
                     key={contract.id}
                     contract={contract}
                     userRole={currentUser?.role || null}
-                    onViewDetails={handleViewDetails}
-                    onApprove={currentUser?.role === "Inquilino" && contract.status === "Pendiente" ? () => openApprovalDialog(contract) : undefined}
-                    onReject={currentUser?.role === "Inquilino" && contract.status === "Pendiente" ? () => openApprovalDialog(contract) : undefined} 
+                    onApprove={currentUser?.role === "Inquilino" && contract.status.toLowerCase() === "pendiente" ? () => openApprovalDialog(contract) : undefined}
+                    onReject={currentUser?.role === "Inquilino" && contract.status.toLowerCase() === "pendiente" ? () => openApprovalDialog(contract) : undefined} 
                     onManage={currentUser?.role === "Arrendador" ? () => openContractFormDialog(contract) : undefined}
-                    onDelete={currentUser?.role === "Arrendador" ? () => openDeleteDialog(contract) : undefined} // Pass delete handler
+                    onDelete={currentUser?.role === "Arrendador" ? () => openDeleteDialog(contract) : undefined} 
+                    onMakeObservation={currentUser?.role === "Inquilino" && contract.status.toLowerCase() === "pendiente" ? () => openObservationDialog(contract) : undefined}
+                    onViewDetails={openContractDetailDialog} 
                   />
                 ))}
               </div>
@@ -371,6 +562,30 @@
                 onApprove={() => handleApprovalAction(contractToApprove.id, "Activo")}
                 onReject={() => handleApprovalAction(contractToApprove.id, "Rechazado")}
                 isSubmitting={isSubmitting}
+              />
+            )}
+
+            {contractToObserve && (
+              <ContractObservationDialog
+                open={isObservationDialogOpen}
+                onOpenChange={setIsObservationDialogOpen}
+                contract={contractToObserve}
+                onSaveObservation={handleSaveObservation}
+                isSubmitting={isSubmitting} 
+              />
+            )}
+
+            {contractToDisplayDetails && (
+              <ContractDetailDialog
+                open={isDetailDialogOpen}
+                onOpenChange={(isOpen) => {
+                  if (!isOpen) setContractToDisplayDetailsId(null); 
+                  setIsDetailDialogOpen(isOpen);
+                }}
+                contract={contractToDisplayDetails}
+                currentUserRole={currentUser?.role || null}
+                onRespondToObservation={handleRespondToContractObservation}
+                isSubmittingResponse={isRespondingToObservation}
               />
             )}
 

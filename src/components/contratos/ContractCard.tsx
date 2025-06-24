@@ -4,34 +4,34 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { Contract, UserRole, InitialPropertyStateStatus } from "@/types";
-import { Eye, CheckCircle2, XCircle, Edit3, FileText, CalendarDays, User, Building, ShieldCheck, Receipt, Archive, Trash2 } from "lucide-react";
-import { ContractDetailDialog } from "./ContractDetailDialog"; // NEW: Import ContractDetailDialog
-import { useState } from "react"; // NEW: Import useState
+import { Eye, CheckCircle2, XCircle, Edit3, FileText, CalendarDays, User, Building, ShieldCheck, Receipt, Archive, Trash2, MessageSquarePlus, MessageSquareWarning } from "lucide-react"; // NEW: Added MessageSquareWarning icon
+import { ContractDetailDialog } from "./ContractDetailDialog";
+import { useState } from "react";
 
 interface ContractCardProps {
   contract: Contract;
   userRole: UserRole | null;
-  // Removed onViewDetails from props, now handled internally
-  onApprove?: (contract: Contract) => void; // Tenant action
-  onReject?: (contract: Contract) => void; // Tenant action
-  onManage?: (contract: Contract) => void; // Landlord action
+  onApprove?: (contract: Contract) => void;
+  onReject?: (contract: Contract) => void;
+  onManage?: (contract: Contract) => void;
   onDeclareInitialState?: (contract: Contract) => void;
   onReviewInitialState?: (contract: Contract) => void;
-  onDelete?: (contract: Contract) => void; // New: Landlord action to delete contract
+  onDelete?: (contract: Contract) => void;
+  onMakeObservation?: (contract: Contract) => void;
 }
 
 export function ContractCard({
   contract,
   userRole,
-  // Removed onViewDetails from destructuring
   onApprove,
   onReject,
   onManage,
   onDeclareInitialState,
   onReviewInitialState,
-  onDelete // New prop
+  onDelete,
+  onMakeObservation,
 }: ContractCardProps) {
-  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false); // NEW: State for detail dialog
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 
   const getStatusVariant = (status: Contract["status"]) => {
     switch (status?.toLowerCase()) {
@@ -50,14 +50,14 @@ export function ContractCard({
 
   const getInitialStateStatusText = (status?: InitialPropertyStateStatus) => {
     if (!status || status.toLowerCase() === "no_declarado") return null;
-    const map: Record<string, string> = { // Allow any string as key for safety
+    const map: Record<string, string> = {
       "no_declarado": "Sin Declarar",
       "pendiente_inquilino": "Estado Inicial Pendiente Inquilino",
       "aceptado_inquilino": "Estado Inicial Aceptado",
       "rechazado_inquilino": "Estado Inicial Rechazado",
     };
     return map[status.toLowerCase() as InitialPropertyStateStatus] || status;
-  };
+  }
 
   const getInitialStateBadgeVariant = (status?: InitialPropertyStateStatus) => {
      if (!status || status.toLowerCase() === "no_declarado") return "invisible";
@@ -89,12 +89,30 @@ export function ContractCard({
     userRole?.toLowerCase() === "inquilino" &&
     initialStatusLower === "pendiente_inquilino";
 
+  const showMakeObservationButton = 
+    userRole?.toLowerCase() === "inquilino" && 
+    contractStatusLower === "pendiente" &&
+    onMakeObservation;
+
+  // NEW: Condition for showing landlord alert for observations
+  const hasObservationsForLandlord = 
+    userRole?.toLowerCase() === "arrendador" &&
+    contractStatusLower === "pendiente" && // Only alert if contract is pending approval
+    (contract.observations && contract.observations.length > 0); // Check if there are any observations
+    
   return (
     <Card className="shadow-md hover:shadow-lg transition-shadow duration-300 flex flex-col">
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
           <CardTitle className="text-lg font-semibold font-headline">{contract.propertyName || `ID ${contract.propertyId.substring(0,8)}...`}</CardTitle>
-          <Badge className={`${getStatusVariant(contract.status)} text-xs`}>{contract.status}</Badge>
+          <div className="flex items-center gap-2"> {/* NEW: Container for badges */}
+            {hasObservationsForLandlord && ( // NEW: Observation alert badge
+              <Badge variant="destructive" className="text-xs px-2 py-1 flex items-center gap-1">
+                <MessageSquareWarning className="h-3 w-3" /> Observaciones
+              </Badge>
+            )}
+            <Badge className={`${getStatusVariant(contract.status)} text-xs`}>{contract.status}</Badge>
+          </div>
         </div>
         <CardDescription className="text-sm text-muted-foreground pt-1">
           {userRole?.toLowerCase() === "arrendador" ? `Inquilino: ${contract.tenantName || 'N/A'}` : `Arrendador: ${contract.landlordName || 'N/A'}`}
@@ -136,10 +154,10 @@ export function ContractCard({
         )}
       </CardContent>
       <CardFooter className="flex flex-wrap justify-end gap-2 bg-muted/30 p-4 mt-auto">
-        <Button variant="outline" size="sm" onClick={() => setIsDetailDialogOpen(true)}> {/* NEW: Open dialog on click */}
+        <Button variant="outline" size="sm" onClick={() => setIsDetailDialogOpen(true)}>
           <Eye className="h-4 w-4 mr-1" /> Detalles
         </Button>
-        {userRole?.toLowerCase() === "inquilino" && contract.status?.toLowerCase() === "pendiente" && onApprove && onReject && (
+        {userRole?.toLowerCase() === "inquilino" && contractStatusLower === "pendiente" && onApprove && onReject && (
           <>
             <Button variant="ghost" size="sm" className="text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => onReject(contract)}>
               <XCircle className="h-4 w-4 mr-1" /> Rechazar
@@ -148,6 +166,11 @@ export function ContractCard({
               <CheckCircle2 className="h-4 w-4 mr-1" /> Aprobar Contrato
             </Button>
           </>
+        )}
+        {showMakeObservationButton && (
+          <Button variant="secondary" size="sm" onClick={() => onMakeObservation?.(contract)}>
+            <MessageSquarePlus className="h-4 w-4 mr-1" /> Hacer Observación
+          </Button>
         )}
         {userRole?.toLowerCase() === "arrendador" && onManage && (
           <Button variant="default" size="sm" onClick={() => onManage(contract)}>
@@ -171,7 +194,6 @@ export function ContractCard({
         )}
       </CardFooter>
 
-      {/* NEW: ContractDetailDialog component */}
       <ContractDetailDialog
         open={isDetailDialogOpen}
         onOpenChange={setIsDetailDialogOpen}

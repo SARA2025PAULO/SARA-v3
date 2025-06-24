@@ -57,7 +57,7 @@ export function ContractApprovalDialog({ contract, open, onOpenChange, onApprove
             </div>
           )}
         </div>
-        {contract.status === "Pendiente" && (
+        {contract.status?.toLowerCase() === "pendiente" && ( // FIX: Changed to lowercase comparison
           <AlertDialogFooter>
             <AlertDialogCancel asChild>
               <Button variant="outline" disabled={isSubmitting}>Cerrar</Button>
@@ -70,7 +70,7 @@ export function ContractApprovalDialog({ contract, open, onOpenChange, onApprove
             </Button>
           </AlertDialogFooter>
         )}
-         {contract.status !== "Pendiente" && (
+         {contract.status?.toLowerCase() !== "pendiente" && ( // FIX: Changed to lowercase comparison
             <AlertDialogFooter>
                 <AlertDialogCancel asChild><Button variant="outline">Cerrar</Button></AlertDialogCancel>
             </AlertDialogFooter>

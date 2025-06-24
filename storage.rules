@@ -15,5 +15,10 @@ service firebase.storage {
      allow write: if request.auth != null;
      allow read;
    }
+   // NEW: Regla para contratos existentes
+   match /existing_contracts/{allPaths=**} {
+     allow write: if request.auth != null;
+     allow read;
+   }
   }
 }
