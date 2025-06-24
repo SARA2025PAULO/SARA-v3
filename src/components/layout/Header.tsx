@@ -53,7 +53,7 @@ export function Header() {
                   <p className="text-xs leading-none text-muted-foreground">
                     {currentUser.email}
                   </p>
-                  <p className="text-xs leading-none text-muted-foreground font-semibold pt-1">
+                  <p className="text-xs leading-none text-muted-foreground pt-1"> {/* Removed font-semibold */}
                     Rol: {currentUser.role || "No asignado"}
                   </p>
                 </div>

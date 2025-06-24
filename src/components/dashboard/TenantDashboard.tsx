@@ -127,10 +127,12 @@ export function TenantDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* NEW: Consistent CardHeader for Tenant Dashboard */}
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="text-3xl font-headline">Panel de Inquilino</CardTitle>
           <CardDescription>Bienvenido a tu espacio en S.A.R.A.</CardDescription>
+          <p className="text-sm text-muted-foreground pt-1">Rol: Inquilino</p>
         </CardHeader>
       </Card>
 
