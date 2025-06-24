@@ -150,8 +150,10 @@ export function TenantDashboard() {
                 <Download className="mr-2 h-5 w-5" /> Descargar Certificado
               </Link>
             </Button>
-            <Button variant="outline" className="w-full justify-start" size="lg" disabled>
-                <Wallet className="mr-2 h-5 w-5" /> Realizar Pago (Próximamente)
+            <Button asChild className="w-full justify-start" size="lg">
+              <Link href="/pagos">
+                <Wallet className="mr-2 h-5 w-5" /> Declarar un Pago
+              </Link>
             </Button>
             <Button variant="outline" className="w-full justify-start" size="lg" disabled>
                 <MessageSquare className="mr-2 h-5 w-5" /> Contactar Arrendador (Próximamente)

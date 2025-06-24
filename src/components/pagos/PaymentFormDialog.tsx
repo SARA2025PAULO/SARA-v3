@@ -1,36 +1,55 @@
-
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import {
-  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogClose
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
 } from "@/components/ui/dialog";
 import {
-  Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription as UiFormDescription
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+  FormDescription as UiFormDescription,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { CalendarIcon, DollarSign, Info, Paperclip } from "lucide-react";
-import { cn } from "@/lib/utils";
-import type { Contract } from "@/types";
-import { useAuth } from "@/contexts/AuthContext";
+import { Paperclip, CreditCard } from "lucide-react"; 
+import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from "@/hooks/use-toast";
+import type { Contract } from "@/types"; 
+
+const paymentTypes = ["arriendo", "gastos comunes", "otro"] as const;
 
 const paymentFormSchema = z.object({
   contractId: z.string().min(1, { message: "Debes seleccionar un contrato." }),
-  type: z.enum(["arriendo", "gastos comunes", "reparaciones", "otros"], { required_error: "Debes seleccionar un tipo de pago."}),
-  amount: z.coerce.number().positive({ message: "El monto debe ser positivo." }),
-  paymentDate: z.date({ required_error: "La fecha de pago es requerida." }),
-  notes: z.string().optional(),
-  attachment: z.custom<FileList>((val) => val instanceof FileList, "Se esperaba un archivo").optional(),
+  type: z.enum(paymentTypes, { 
+    required_error: "Debes seleccionar un tipo de pago.",
+  }),
+  amount: z.coerce.number().min(1, { message: "El monto debe ser al menos $1." }),
+  paymentDate: z.string().min(1, { message: "Debes seleccionar la fecha del pago." }), 
+  notes: z.string().max(500, { message: "Máximo 500 caracteres." }).optional().nullable(),
+  attachment: z
+    .custom<FileList>((val) => val instanceof FileList, "Se esperaba un archivo")
+    .optional(),
 });
 
 export type PaymentFormValues = z.infer<typeof paymentFormSchema>;
@@ -38,53 +57,108 @@ export type PaymentFormValues = z.infer<typeof paymentFormSchema>;
 interface PaymentFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (data: PaymentFormValues) => Promise<void>; 
+  onSave: (data: PaymentFormValues & { attachmentUrl: string | null }) => Promise<void>;
   tenantContracts: Contract[];
 }
 
-export function PaymentFormDialog({ open, onOpenChange, onSave, tenantContracts }: PaymentFormDialogProps) {
-  const { currentUser } = useAuth();
+export function PaymentFormDialog({
+  open,
+  onOpenChange,
+  onSave,
+  tenantContracts,
+}: PaymentFormDialogProps) {
   const { toast } = useToast();
+  const [selectedFileName, setSelectedFileName] = useState<string | null>(null); 
 
   const form = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentFormSchema),
     defaultValues: {
-      contractId: tenantContracts.find(c => c.status === "Activo")?.id || "",
-      type: "arriendo",
-      amount: undefined,
-      paymentDate: new Date(),
+      contractId: tenantContracts.find((c) => c.status === "Activo")?.id || "",
+      type: "arriendo", 
+      amount: 0,
+      paymentDate: new Date().toISOString().split('T')[0], 
       notes: "",
-      attachment: undefined,
+      attachment: undefined, 
     },
   });
 
   async function onSubmit(values: PaymentFormValues) {
-    if (!currentUser || currentUser.role !== "Inquilino") {
-      toast({ title: "Error de Permiso", description: "Solo los inquilinos pueden declarar pagos.", variant: "destructive" });
-      return;
+    let attachmentUrl: string | null = null;
+
+    if (values.attachment && values.attachment.length > 0) {
+      const file = values.attachment[0];
+      const fileName = file.name;
+      const storage = getStorage();
+      const storageRef = ref(
+        storage,
+        `payment_receipts/${values.contractId}/${Date.now()}_${fileName}`
+      );
+      try {
+        const metadata = {
+          contentDisposition: `attachment; filename="${fileName}"`,
+        };
+        const snapshot = await uploadBytes(storageRef, file, metadata);
+        attachmentUrl = await getDownloadURL(snapshot.ref);
+        toast({ title: "Archivo Adjunto", description: "Comprobante subido exitosamente." });
+      } catch (error) {
+        console.error("Error al subir el archivo de comprobante:", error);
+        toast({
+          title: "Error al adjuntar comprobante",
+          description: "No se pudo subir el archivo. Inténtalo de nuevo.",
+          variant: "destructive",
+        });
+        return; 
+      }
     }
-    await onSave(values);
+
+    await onSave({ 
+      ...values, 
+      attachmentUrl: attachmentUrl 
+    });
+
+    form.reset({
+      contractId: tenantContracts.find((c) => c.status === "Activo")?.id || "",
+      type: "arriendo",
+      amount: 0,
+      paymentDate: new Date().toISOString().split('T')[0],
+      notes: "",
+      attachment: undefined,
+    });
+    setSelectedFileName(null); 
   }
 
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => {
-      onOpenChange(isOpen);
-      if (!isOpen) {
-        form.reset({ 
-            contractId: tenantContracts.find(c => c.status === "Activo")?.id || "",
-            type: "arriendo", amount: undefined, paymentDate: new Date(), notes: "", attachment: undefined
-        });
-      }
-    }}>
+    <Dialog
+      open={open}
+      onOpenChange={(isOpen) => {
+        onOpenChange(isOpen);
+        if (!isOpen) {
+          form.reset({
+            contractId: tenantContracts.find((c) => c.status === "Activo")?.id || "",
+            type: "arriendo",
+            amount: 0,
+            paymentDate: new Date().toISOString().split('T')[0],
+            notes: "",
+            attachment: undefined,
+          });
+          setSelectedFileName(null);
+        }
+      }}
+    >
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Declarar Nuevo Pago</DialogTitle>
+          <DialogTitle className="flex items-center">
+            <CreditCard className="h-5 w-5 mr-2 text-primary" /> Declarar Nuevo Pago
+          </DialogTitle>
           <DialogDescription>
-            Completa los detalles del pago realizado.
+            Registra un nuevo pago asociado a tu contrato.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1 pr-4">
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="space-y-4 max-h-[70vh] overflow-y-auto p-1 pr-4"
+          >
             <FormField
               control={form.control}
               name="contractId"
@@ -98,17 +172,20 @@ export function PaymentFormDialog({ open, onOpenChange, onSave, tenantContracts 
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {tenantContracts.filter(c => c.status === "Activo").map(contract => (
-                        <SelectItem key={contract.id} value={contract.id}>
-                          {contract.propertyName} (Fin: {new Date(contract.endDate).toLocaleDateString('es-CL')})
-                        </SelectItem>
-                      ))}
+                      {tenantContracts
+                        .filter((c) => c.status === "Activo")
+                        .map((contract) => (
+                          <SelectItem key={contract.id} value={contract.id}>
+                            {contract.propertyName} ({contract.landlordName})
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
             <FormField
               control={form.control}
               name="type"
@@ -122,104 +199,103 @@ export function PaymentFormDialog({ open, onOpenChange, onSave, tenantContracts 
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="arriendo">Arriendo</SelectItem>
-                      <SelectItem value="gastos comunes">Gastos Comunes</SelectItem>
-                      <SelectItem value="reparaciones">Reparaciones</SelectItem>
-                      <SelectItem value="otros">Otros</SelectItem>
+                      {paymentTypes.map((type) => (
+                        <SelectItem key={type} value={type} className="capitalize">
+                          {type.charAt(0).toUpperCase() + type.slice(1)}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
             <FormField
               control={form.control}
               name="amount"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Monto Pagado (CLP)</FormLabel>
+                  <FormLabel>Monto</FormLabel>
                   <FormControl>
-                    <div className="relative">
-                      <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input type="number" placeholder="Ej: 350000" className="pl-9" {...field}
-                        onChange={e => field.onChange(e.target.value === '' ? '' : parseFloat(e.target.value))}
-                        value={field.value ?? ''}
-                      />
-                    </div>
+                    <Input
+                      type="number"
+                      placeholder="Ej: 500000"
+                      {...field}
+                      onChange={e => field.onChange(parseFloat(e.target.value))}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
             <FormField
               control={form.control}
               name="paymentDate"
               render={({ field }) => (
-                <FormItem className="flex flex-col">
-                  <FormLabel>Fecha de Pago</FormLabel>
-                  <Popover>
-                    <PopoverTrigger asChild>
-                      <FormControl>
-                        <Button
-                          variant={"outline"}
-                          className={cn(
-                            "w-full pl-3 text-left font-normal",
-                            !field.value && "text-muted-foreground"
-                          )}
-                        >
-                          {field.value ? format(field.value, "PPP", { locale: es }) : <span>Selecciona una fecha</span>}
-                          <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                        </Button>
-                      </FormControl>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="start">
-                      <Calendar mode="single" selected={field.value} onSelect={field.onChange} initialFocus locale={es} />
-                    </PopoverContent>
-                  </Popover>
+                <FormItem>
+                  <FormLabel>Fecha del Pago</FormLabel>
+                  <FormControl>
+                    <Input type="date" {...field} />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
             <FormField
               control={form.control}
               name="notes"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Notas Adicionales (Opcional)</FormLabel>
+                  <FormLabel>Notas (Opcional)</FormLabel>
                   <FormControl>
-                    <div className="relative">
-                      <Info className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                      <Textarea placeholder="Ej: Transferencia desde cuenta X, Nro. de operación Y..." className="pl-9" {...field} rows={3}/>
-                    </div>
+                    <Textarea placeholder="Detalles adicionales del pago..." {...field} rows={3} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
             <FormField
               control={form.control}
               name="attachment"
-              render={({ field: { onChange, value, ...rest } }) => ( // Destructure to handle FileList
+              render={({ field }) => (
                 <FormItem>
                   <FormLabel className="flex items-center">
                     <Paperclip className="h-4 w-4 mr-2 text-muted-foreground" />
-                    Adjuntar Comprobante (Opcional)
+                    {selectedFileName
+                      ? `Adjunto: ${selectedFileName}`
+                      : "Adjuntar Comprobante (Opcional)"}
                   </FormLabel>
                   <FormControl>
-                    <Input 
-                      type="file" 
-                      className="file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
-                      onChange={(e) => onChange(e.target.files)} // Pass FileList to RHF
-                      {...rest} 
+                    <input
+                      type="file"
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      onChange={(e) => {
+                        const files = e.target.files;
+                        const fileName = files?.[0]?.name || null;
+                        setSelectedFileName(fileName); 
+                        field.onChange(files || undefined); 
+                      }}
+                      ref={field.ref} 
                     />
                   </FormControl>
-                  <UiFormDescription>Puedes adjuntar imágenes o PDF.</UiFormDescription>
+                  <UiFormDescription>
+                    Puedes adjuntar el comprobante de pago (imagen o PDF).
+                  </UiFormDescription>
                   <FormMessage />
                 </FormItem>
               )}
             />
+
             <DialogFooter className="pt-4">
-              <DialogClose asChild><Button type="button" variant="outline">Cancelar</Button></DialogClose>
+              <DialogClose asChild>
+                <Button type="button" variant="outline">
+                  Cancelar
+                </Button>
+              </DialogClose>
               <Button type="submit" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting ? "Declarando..." : "Declarar Pago"}
               </Button>
@@ -230,4 +306,3 @@ export function PaymentFormDialog({ open, onOpenChange, onSave, tenantContracts 
     </Dialog>
   );
 }
-

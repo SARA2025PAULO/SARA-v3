@@ -4,7 +4,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, FileText, LayoutDashboard, LogOut, Building2, Users, CreditCard, ShieldAlert, ClipboardCheck, FileUp } from "lucide-react";
+import { Home, FileText, LayoutDashboard, LogOut, Building2, Users, CreditCard, ShieldAlert, ClipboardCheck } from "lucide-react";
 import {
   SidebarProvider,
   Sidebar,
@@ -65,7 +65,6 @@ export function AppLayout({ children }: AppLayoutProps) {
     { href: "/pagos", label: "Pagos", icon: CreditCard, count: isArrendador ? pendingCounts.pagos : 0 },
     { href: "/incidentes", label: "Incidentes", icon: ShieldAlert, count: pendingCounts.incidentes },
     { href: "/evaluaciones", label: "Evaluaciones", icon: ClipboardCheck, count: !isArrendador ? pendingCounts.evaluaciones : 0 },
-    { href: "/archivos", label: "Archivos", icon: FileUp, count: 0 },
   ];
 
   return (
