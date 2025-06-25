@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -13,6 +12,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"; // Import Tooltip components
 
 // --- ScoreDisplay Component (no changes) ---
 const ScoreDisplay = ({ score }: { score: number | null }) => {
@@ -135,13 +135,71 @@ export function TenantDashboard() {
         <Card>
           <CardHeader><CardTitle>Acciones Rápidas</CardTitle></CardHeader>
           <CardContent className="space-y-4">
-             <Button asChild className="w-full justify-start" size="lg"><Link href="/contratos"><FileText className="mr-2 h-5 w-5" /> Mis Contratos</Link></Button>
-             <Button asChild className="w-full justify-start" size="lg"><Link href="/calendario"><Calendar className="mr-2 h-5 w-5" /> Mi Calendario</Link></Button>
-             <Button asChild className="w-full justify-start" size="lg"><Link href="/dashboard/certificado"><Download className="mr-2 h-5 w-5" /> Descargar Certificado</Link></Button>
-             <Button asChild className="w-full justify-start" size="lg"><Link href="/pagos"><Wallet className="mr-2 h-5 w-5" /> Declarar un Pago</Link></Button>
-             <Button variant="outline" className="w-full justify-start" size="lg" disabled><MessageSquare className="mr-2 h-5 w-5" /> Contactar Arrendador (Próximamente)</Button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button asChild className="w-full justify-start" size="lg">
+                  <Link href="/contratos">
+                    <FileText className="mr-2 h-5 w-5" /> Mis Contratos
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Revisa y gestiona tus contratos de arriendo.</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button asChild className="w-full justify-start" size="lg">
+                  <Link href="/calendario">
+                    <Calendar className="mr-2 h-5 w-5" /> Mi Calendario
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Consulta tus fechas importantes de arriendo.</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button asChild className="w-full justify-start" size="lg">
+                  <Link href="/dashboard/certificado">
+                    <Download className="mr-2 h-5 w-5" /> Descargar Certificado
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Obtén tu certificado de comportamiento de inquilino.</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button asChild className="w-full justify-start" size="lg">
+                  <Link href="/pagos">
+                    <Wallet className="mr-2 h-5 w-5" /> Declarar un Pago
+                  </Link>
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Registra un pago de arriendo realizado.</p>
+              </TooltipContent>
+            </Tooltip>
+
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="outline" className="w-full justify-start" size="lg" disabled>
+                    <MessageSquare className="mr-2 h-5 w-5" /> Contactar Arrendador (Próximamente)
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Funcionalidad para contactar directamente a tu arrendador.</p>
+              </TooltipContent>
+            </Tooltip>
           </CardContent>
         </Card>
+
         <AnnouncementsSection />
       </div>
       

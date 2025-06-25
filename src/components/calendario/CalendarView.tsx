@@ -23,7 +23,7 @@ interface CalendarEvent {
   end: Date;
   allDay: boolean;
   resource: {
-    type: 'payment' | 'contract' | 'adjustment';
+    type: 'payment' | 'contract' | 'adjustment' | 'common_expenses' | 'utilities'; // Added new types
     status: 'completed' | 'pending';
     contractId: string;
     propertyId: string;
@@ -43,6 +43,12 @@ const eventStyleGetter = (event: CalendarEvent) => {
       break;
     case 'adjustment':
       backgroundColor = '#5bc0de';
+      break;
+    case 'common_expenses': // New color for common expenses
+      backgroundColor = '#6c757d'; // Gray
+      break;
+    case 'utilities': // New color for utilities
+      backgroundColor = '#007bff'; // Blue
       break;
     default:
       backgroundColor = '#3174ad';
@@ -65,18 +71,20 @@ export default function CalendarView() {
   const { currentUser } = useAuth();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [currentDate, setCurrentDate] = useState(new Date()); // State to control current date
+  const [currentView, setCurrentView] = useState(Views.MONTH); // State to control current view
 
   useEffect(() => {
     console.log('CalendarView: useEffect triggered. currentUser:', currentUser);
     if (!currentUser) {
       setLoading(false);
+      setEvents([]); // Ensure events are empty if no user
       return;
     }
 
     const fetchCalendarData = async () => {
       setLoading(true);
       try {
-        // --- CORRECTED: Query for contracts with lowercase statuses ---
         const userContractsQuery = query(
           collection(db, 'contracts'),
           where(currentUser.role === 'Arrendador' ? 'landlordId' : 'tenantId', '==', currentUser.uid),
@@ -90,46 +98,101 @@ export default function CalendarView() {
         console.log('CalendarView: Mapped contracts:', contracts);
 
         const generatedEvents: CalendarEvent[] = [];
-        
+        const today = moment();
+
         contracts.forEach(contract => {
           if (!contract.startDate || !contract.endDate) return;
 
-          // 1. Evento de fin de contrato
-          generatedEvents.push({
-            title: `Fin Contrato: ${contract.propertyName}`,
-            start: moment(contract.endDate).toDate(),
-            end: moment(contract.endDate).toDate(),
-            allDay: true,
-            resource: {
-              type: 'contract',
-              status: 'pending',
-              contractId: contract.id,
-              propertyId: contract.propertyId,
-              propertyName: contract.propertyName,
-            },
-          });
+          const contractStartMoment = moment(contract.startDate);
+          const contractEndMoment = moment(contract.endDate);
 
-          // 2. Eventos de pago
-          const paymentDay = contract.rentPaymentDay || 5;
-          const start = moment(contract.startDate);
-          const end = moment(contract.endDate);
-          let current = start.clone();
+          // Generate events from 6 months before today up to 12 months from now,
+          // ensuring they are within the actual contract start and end dates.
+          let loopStart = moment.max(contractStartMoment, today.clone().subtract(6, 'months'));
+          let loopEnd = moment.min(contractEndMoment, today.clone().add(12, 'months'));
 
-          while (current.isBefore(end)) {
-            generatedEvents.push({
-              title: `Pago Arriendo: ${contract.propertyName}`,
-              start: current.clone().date(paymentDay).toDate(),
-              end: current.clone().date(paymentDay).toDate(),
-              allDay: true,
-              resource: {
-                type: 'payment',
-                status: 'pending', // Placeholder status
-                contractId: contract.id,
-                propertyId: contract.propertyId,
-                propertyName: contract.propertyName,
-              },
-            });
-            current.add(1, 'month');
+          if (loopStart.isAfter(loopEnd)) return; // No relevant period to show
+
+          let currentMonth = loopStart.clone().startOf('month');
+
+          while (currentMonth.isSameOrBefore(loopEnd)) {
+            // 1. Evento de fin de contrato (solo si es el mes del fin de contrato y aún no ha pasado)
+            if (currentMonth.isSame(contractEndMoment, 'month') && currentMonth.isSameOrBefore(contractEndMoment)) {
+              generatedEvents.push({
+                title: `Fin Contrato: ${contract.propertyName}`,
+                start: contractEndMoment.toDate(),
+                end: contractEndMoment.toDate(),
+                allDay: true,
+                resource: {
+                  type: 'contract',
+                  status: 'pending',
+                  contractId: contract.id,
+                  propertyId: contract.propertyId,
+                  propertyName: contract.propertyName,
+                },
+              });
+            }
+
+            // 2. Eventos de pago de arriendo
+            const rentPaymentDay = contract.rentPaymentDay || 5;
+            const rentDate = currentMonth.clone().date(rentPaymentDay);
+            if (rentDate.isSameOrAfter(contractStartMoment) && rentDate.isSameOrBefore(contractEndMoment)) {
+              generatedEvents.push({
+                title: `Pago Arriendo: ${contract.propertyName}`,
+                start: rentDate.toDate(),
+                end: rentDate.toDate(),
+                allDay: true,
+                resource: {
+                  type: 'payment',
+                  status: 'pending', // Placeholder status
+                  contractId: contract.id,
+                  propertyId: contract.propertyId,
+                  propertyName: contract.propertyName,
+                },
+              });
+            }
+
+            // 3. Eventos de pago de gastos comunes (si no están incluidos y se especifica un día)
+            if (contract.commonExpensesIncluded === 'no incluidos' && contract.commonExpensesPaymentDay) {
+              const commonExpensesDate = currentMonth.clone().date(contract.commonExpensesPaymentDay);
+              if (commonExpensesDate.isSameOrAfter(contractStartMoment) && commonExpensesDate.isSameOrBefore(contractEndMoment)) {
+                generatedEvents.push({
+                  title: `Pago G. Comunes: ${contract.propertyName}`,
+                  start: commonExpensesDate.toDate(),
+                  end: commonExpensesDate.toDate(),
+                  allDay: true,
+                  resource: {
+                    type: 'common_expenses',
+                    status: 'pending',
+                    contractId: contract.id,
+                    propertyId: contract.propertyId,
+                    propertyName: contract.propertyName,
+                  },
+                });
+              }
+            }
+
+            // 4. Eventos de pago de cuentas de servicios (si se especifica un día)
+            if (contract.utilitiesPaymentDay) {
+              const utilitiesDate = currentMonth.clone().date(contract.utilitiesPaymentDay);
+              if (utilitiesDate.isSameOrAfter(contractStartMoment) && utilitiesDate.isSameOrBefore(contractEndMoment)) {
+                generatedEvents.push({
+                  title: `Pago Cuentas: ${contract.propertyName}`,
+                  start: utilitiesDate.toDate(),
+                  end: utilitiesDate.toDate(),
+                  allDay: true,
+                  resource: {
+                    type: 'utilities',
+                    status: 'pending',
+                    contractId: contract.id,
+                    propertyId: contract.propertyId,
+                    propertyName: contract.propertyName,
+                  },
+                });
+              }
+            }
+
+            currentMonth.add(1, 'month');
           }
         });
         
@@ -156,7 +219,7 @@ export default function CalendarView() {
   }
 
   return (
-    <div style={{ height: 700 }}>
+    <div style={{ height: 700, width: '100%' }}>
       <Calendar
         localizer={localizer}
         events={events}
@@ -165,6 +228,16 @@ export default function CalendarView() {
         style={{ height: '100%' }}
         eventPropGetter={eventStyleGetter}
         views={[Views.MONTH, Views.WEEK, Views.AGENDA]}
+        date={currentDate} // Controlled date
+        onNavigate={setCurrentDate} // Navigate handler
+        view={currentView} // Controlled view
+        onView={setCurrentView} // View handler
+        defaultDate={new Date()} // Kept for initial load logic if needed by library
+        defaultView={Views.MONTH} 
+        toolbar={true}
+        selectable
+        onSelectEvent={event => console.log("Event selected:", event)}
+        onSelectSlot={slotInfo => console.log("Slot selected:", slotInfo)}
         messages={{
           next: "Siguiente",
           previous: "Anterior",
