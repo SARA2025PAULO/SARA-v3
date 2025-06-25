@@ -1,4 +1,3 @@
-
 "use client";
 
 import Link from "next/link";
@@ -7,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import {
   Building2, FileText, PlusCircle, Gavel, Upload, Calendar, Wallet, AlertTriangle,
-  Timer, CheckCircle, XCircle, BarChart, Users, Megaphone, ClipboardCheck, DollarSign
+  Timer, CheckCircle, XCircle, BarChart, Users, Megaphone, ClipboardCheck, DollarSign, PieChart as PieChartIcon
 } from "lucide-react";
 import type { Property, Contract, Payment, Incident, Evaluation } from "@/types";
 import { AnnouncementsSection } from "./AnnouncementsSection";
@@ -17,7 +16,8 @@ import { collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from "@/lib/firebase";
 import { Skeleton } from "@/components/ui/skeleton";
 import moment from 'moment';
-import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip"; // Import Tooltip components
+import { Tooltip, TooltipTrigger, TooltipContent } from "@/components/ui/tooltip";
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip as RechartsTooltip, Legend } from 'recharts';
 
 export function LandlordDashboard() {
   const { currentUser } = useAuth();
@@ -49,19 +49,18 @@ export function LandlordDashboard() {
       const contractsList = contractsSnapshot.docs.map(doc => ({
         id: doc.id, 
         ...doc.data() as Contract,
-        startDate: (doc.data() as Contract).startDate?.toDate ? (doc.data() as Contract).startDate.toDate() : (doc.data() as Contract).startDate, // Convert Firestore Timestamp
-        endDate: (doc.data() as Contract).endDate?.toDate ? (doc.data() as Contract).endDate.toDate() : (doc.data() as Contract).endDate, // Convert Firestore Timestamp
-      }) as Contract); // Cast to Contract
+        startDate: (doc.data() as Contract).startDate?.toDate ? (doc.data() as Contract).startDate.toDate() : (doc.data() as Contract).startDate,
+        endDate: (doc.data() as Contract).endDate?.toDate ? (doc.data() as Contract).endDate.toDate() : (doc.data() as Contract).endDate,
+      }) as Contract);
       setContracts(contractsList);
 
-      // Fetch Payments (simplified: get all payments related to landlord's contracts for now)
-      // A more robust solution might fetch payments for active/overdue contracts specifically.
+      // Fetch Payments
       const paymentsQuery = query(collection(db, "pagos"), where("landlordId", "==", landlordId));
       const paymentsSnapshot = await getDocs(paymentsQuery);
       const paymentsList = paymentsSnapshot.docs.map(doc => ({
         id: doc.id, 
         ...doc.data() as Payment,
-        date: (doc.data() as Payment).date?.toDate ? (doc.data() as Payment).date.toDate() : (doc.data() as Payment).date, // Convert Firestore Timestamp
+        date: (doc.data() as Payment).date?.toDate ? (doc.data() as Payment).date.toDate() : (doc.data() as Payment).date,
       }) as Payment);
       setPayments(paymentsList);
 
@@ -71,7 +70,7 @@ export function LandlordDashboard() {
       const incidentsList = incidentsSnapshot.docs.map(doc => ({
         id: doc.id, 
         ...doc.data() as Incident,
-        createdAt: (doc.data() as Incident).createdAt?.toDate ? (doc.data() as Incident).createdAt.toDate() : (doc.data() as Incident).createdAt, // Convert Firestore Timestamp
+        createdAt: (doc.data() as Incident).createdAt?.toDate ? (doc.data() as Incident).createdAt.toDate() : (doc.data() as Incident).createdAt,
       }) as Incident);
       setIncidents(incidentsList);
 
@@ -81,7 +80,7 @@ export function LandlordDashboard() {
       const evaluationsList = evaluationsSnapshot.docs.map(doc => ({
         id: doc.id, 
         ...doc.data() as Evaluation,
-        evaluationDate: (doc.data() as Evaluation).evaluationDate?.toDate ? (doc.data() as Evaluation).evaluationDate.toDate() : (doc.data() as Evaluation).evaluationDate, // Convert Firestore Timestamp
+        evaluationDate: (doc.data() as Evaluation).evaluationDate?.toDate ? (doc.data() as Evaluation).evaluationDate.toDate() : (doc.data() as Evaluation).evaluationDate,
       }) as Evaluation);
       setEvaluations(evaluationsList);
 
@@ -107,7 +106,6 @@ export function LandlordDashboard() {
   const expiringContractsCount = contracts.filter(c => {
     const endDate = moment(c.endDate);
     const now = moment();
-    // Check if contract ends in the future, and is within the next 3 months
     return c.status === "activo" && endDate.isAfter(now) && endDate.isSameOrBefore(now.clone().add(3, 'months'), 'day');
   }).length;
 
@@ -121,23 +119,19 @@ export function LandlordDashboard() {
   }).reduce((sum, payment) => sum + payment.amount, 0);
 
   const overduePaymentsCount = contracts.filter(contract => {
-    // Only consider active contracts
     if (contract.status !== "activo") return false;
 
-    // Get the expected payment date for the current month
     const expectedPaymentDay = contract.rentPaymentDay || 5;
     let expectedPaymentDate = moment().date(expectedPaymentDay).startOf('day');
 
-    // If today is before the expected payment date, it's not yet due
     if (moment().isBefore(expectedPaymentDate, 'day')) return false;
 
-    // Check if a payment for the current month for this contract has been made and is 'Pagado'
     const paidThisMonth = payments.some(p => {
       const pDate = moment(p.date);
       return p.contractId === contract.id && p.status === "Pagado" && pDate.isSame(expectedPaymentDate, 'month');
     });
     
-    return !paidThisMonth; // If not paid for this month and due date has passed
+    return !paidThisMonth;
   }).length;
 
   const overallTenantScore = evaluations.length > 0 
@@ -146,6 +140,51 @@ export function LandlordDashboard() {
          (e.criteria?.communication || 0) + (e.criteria?.generalBehavior || 0)) / 4
       , 0) / evaluations.length).toFixed(1)
     : "N/A";
+
+  // --- Data for Charts ---
+
+  // Properties Chart Data
+  const propertiesData = Object.entries(
+    properties.reduce((acc, property) => {
+      acc[property.status] = (acc[property.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>)
+  ).map(([name, value]) => ({ name, value }));
+
+  const PROPERTIES_COLORS = {
+    "Disponible": "#82ca9d", // Green
+    "Arrendada": "#8884d8", // Purple
+    "Mantenimiento": "#ffc658", // Yellow
+  };
+
+  // Contracts Chart Data
+  const contractsData = Object.entries(
+    contracts.reduce((acc, contract) => {
+      acc[contract.status] = (acc[contract.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>)
+  ).map(([name, value]) => ({ name, value }));
+
+  const CONTRACTS_COLORS = {
+    "activo": "#4CAF50", // Green
+    "pendiente": "#FFC107", // Amber
+    "finalizado": "#9E9E9E", // Grey
+    "rechazado": "#F44336", // Red
+  };
+
+  // Incidents Chart Data
+  const incidentsData = Object.entries(
+    incidents.reduce((acc, incident) => {
+      acc[incident.status] = (acc[incident.status] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>)
+  ).map(([name, value]) => ({ name, value }));
+
+  const INCIDENTS_COLORS = {
+    "abierto": "#FFC107", // Amber
+    "en proceso": "#2196F3", // Blue
+    "cerrado": "#4CAF50", // Green
+  };
 
   if (loading) {
     return (
@@ -187,105 +226,108 @@ export function LandlordDashboard() {
         )}
       </Card>
 
-      {/* Main Metrics Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-        {/* Total Propiedades Card */}
-        <Card className="shadow-md hover:shadow-lg transition-shadow border border-muted-foreground/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Propiedades</CardTitle>
-            <Building2 className="h-6 w-6 text-primary" />
+      {/* Charts Section - Now main focus */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        {/* Properties Status Chart */}
+        <Card className="shadow-md">
+          <CardHeader>
+            <CardTitle className="text-lg">Estado de Propiedades</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold text-foreground">{totalProperties}</div>
-            <p className="text-xs text-muted-foreground">Propiedades registradas</p>
+          <CardContent className="h-[200px]">
+            {propertiesData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={propertiesData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {propertiesData.map((entry, index) => (
+                      <Cell key={`cell-properties-${index}`} fill={PROPERTIES_COLORS[entry.name as keyof typeof PROPERTIES_COLORS]} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip formatter={(value, name) => [`${value} (${((value / totalProperties) * 100).toFixed(1)}%)`, name]} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-full items-center justify-center text-muted-foreground">No hay datos de propiedades para mostrar.</div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Contratos Activos Card */}
-        <Card className="shadow-md hover:shadow-lg transition-shadow border border-muted-foreground/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Contratos Activos</CardTitle>
-            <FileText className="h-6 w-6 text-primary" />
+        {/* Contracts Status Chart */}
+        <Card className="shadow-md">
+          <CardHeader>
+            <CardTitle className="text-lg">Estado de Contratos</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold text-foreground">{activeContractsCount}</div>
-            <p className="text-xs text-muted-foreground">Contratos vigentes</p>
+          <CardContent className="h-[200px]">
+            {contractsData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={contractsData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {contractsData.map((entry, index) => (
+                      <Cell key={`cell-contracts-${index}`} fill={CONTRACTS_COLORS[entry.name as keyof typeof CONTRACTS_COLORS]} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip formatter={(value, name) => [`${value} (${((value / contracts.length) * 100).toFixed(1)}%)`, name]} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-full items-center justify-center text-muted-foreground">No hay datos de contratos para mostrar.</div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Contratos Pendientes Card */}
-        <Card className="shadow-md hover:shadow-lg transition-shadow border border-muted-foreground/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Contratos Pendientes</CardTitle>
-            <Timer className="h-6 w-6 text-orange-500" /> {/* Orange for warning/pending */}
+        {/* Incidents Status Chart */}
+        <Card className="shadow-md">
+          <CardHeader>
+            <CardTitle className="text-lg">Estado de Incidentes</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold text-foreground">{pendingContractsCount}</div>
-            <p className="text-xs text-muted-foreground">Esperando aprobación de inquilino</p>
-          </CardContent>
-        </Card>
-
-        {/* Próximos a Vencer Card */}
-        <Card className="shadow-md hover:shadow-lg transition-shadow border border-muted-foreground/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Próximos a Vencer</CardTitle>
-            <Calendar className="h-6 w-6 text-purple-500" /> {/* Purple for upcoming */}
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold text-foreground">{expiringContractsCount}</div>
-            <p className="text-xs text-muted-foreground">En los próximos 3 meses</p>
-          </CardContent>
-        </Card>
-
-        {/* Pagos Atrasados Card */}
-        <Card className="shadow-md hover:shadow-lg transition-shadow border border-muted-foreground/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Pagos Atrasados</CardTitle>
-            <XCircle className="h-6 w-6 text-red-500" /> {/* Red for critical */}
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold text-foreground">{overduePaymentsCount}</div>
-            <p className="text-xs text-muted-foreground">Contratos con pagos pendientes</p>
-          </CardContent>
-        </Card>
-
-        {/* Pagos Mes Actual Card */}
-        <Card className="shadow-md hover:shadow-lg transition-shadow border border-muted-foreground/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Pagos Mes Actual</CardTitle>
-            <DollarSign className="h-6 w-6 text-green-500" /> {/* Green for success */}
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold text-foreground">${currentMonthPaymentsReceived.toLocaleString('es-CL')}</div>
-            <p className="text-xs text-muted-foreground">Total recibido en el mes</p>
-          </CardContent>
-        </Card>
-
-        {/* Incidentes Abiertos Card */}
-        <Card className="shadow-md hover:shadow-lg transition-shadow border border-muted-foreground/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Incidentes Abiertos</CardTitle>
-            <AlertTriangle className="h-6 w-6 text-orange-500" /> {/* Orange for warning */}
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold text-foreground">{openIncidentsCount}</div>
-            <p className="text-xs text-muted-foreground">Problemas sin resolver</p>
-          </CardContent>
-        </Card>
-
-        {/* Evaluaciones Pendientes Card */}
-        <Card className="shadow-md hover:shadow-lg transition-shadow border border-muted-foreground/20">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Evaluaciones Pendientes</CardTitle>
-            <ClipboardCheck className="h-6 w-6 text-yellow-500" /> {/* Yellow for pending action */}
-          </CardHeader>
-          <CardContent>
-            <div className="text-4xl font-bold text-foreground">{pendingEvaluationsCount}</div>
-            <p className="text-xs text-muted-foreground">Confirmación de inquilino</p>
+          <CardContent className="h-[200px]">
+            {incidentsData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={incidentsData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    fill="#8884d8"
+                    dataKey="value"
+                    labelLine={false}
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  >
+                    {incidentsData.map((entry, index) => (
+                      <Cell key={`cell-incidents-${index}`} fill={INCIDENTS_COLORS[entry.name as keyof typeof INCIDENTS_COLORS]} />
+                    ))}
+                  </Pie>
+                  <RechartsTooltip formatter={(value, name) => [`${value} (${((value / incidents.length) * 100).toFixed(1)}%)`, name]} />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-full items-center justify-center text-muted-foreground">No hay datos de incidentes para mostrar.</div>
+            )}
           </CardContent>
         </Card>
       </div>
-      
+
       {/* Quick Actions & Announcements Section */}
       <div className="grid gap-6 md:grid-cols-2">
         <Card className="shadow-lg">
