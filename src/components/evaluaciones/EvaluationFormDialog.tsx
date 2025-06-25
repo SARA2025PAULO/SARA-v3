@@ -1,4 +1,3 @@
-
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -78,7 +77,8 @@ export function EvaluationFormDialog({ open, onOpenChange, onSave, landlordContr
   React.useEffect(() => {
     if (open) {
       form.reset({
-        contractId: landlordContracts.length > 0 ? landlordContracts[0].id : "", // Default to first or specific if passed
+        // CORRECTED: Default to first contract with lowercase status check
+        contractId: landlordContracts.find(c => c.status === "activo" || c.status === "finalizado")?.id || "",
         criteria: {
           paymentPunctuality: 3,
           propertyCare: 3,
@@ -121,7 +121,8 @@ export function EvaluationFormDialog({ open, onOpenChange, onSave, landlordContr
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {landlordContracts.filter(c => c.status === "Activo" || c.status === "Finalizado").map(contract => (
+                      {/* CORRECTED: Filter by lowercase 'activo' or 'finalizado' */}
+                      {landlordContracts.filter(c => c.status === "activo" || c.status === "finalizado").map(contract => (
                         <SelectItem key={contract.id} value={contract.id}>
                           {contract.propertyName} (Inq: {contract.tenantName || contract.tenantEmail})
                         </SelectItem>

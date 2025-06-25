@@ -87,7 +87,8 @@ export function IncidentFormDialog({
   const form = useForm<IncidentFormDialogValues>({
     resolver: zodResolver(incidentFormSchema),
     defaultValues: {
-      contractId: userContracts.find((c) => c.status === "Activo")?.id || "",
+      // CORRECTED: Filter by lowercase 'activo'
+      contractId: userContracts.find((c) => c.status === "activo")?.id || "",
       type: "otros",
       description: "",
       initialAttachment: undefined,
@@ -142,7 +143,8 @@ export function IncidentFormDialog({
     });
 
     form.reset({
-      contractId: userContracts.find((c) => c.status === "Activo")?.id || "",
+      // CORRECTED: Filter by lowercase 'activo'
+      contractId: userContracts.find((c) => c.status === "activo")?.id || "",
       type: "otros",
       description: "",
       initialAttachment: undefined,
@@ -157,8 +159,9 @@ export function IncidentFormDialog({
         onOpenChange(isOpen);
         if (!isOpen) {
           form.reset({
+            // CORRECTED: Filter by lowercase 'activo'
             contractId:
-              userContracts.find((c) => c.status === "Activo")?.id || "",
+              userContracts.find((c) => c.status === "activo")?.id || "",
             type: "otros",
             description: "",
             initialAttachment: undefined,
@@ -196,7 +199,8 @@ export function IncidentFormDialog({
                       </SelectTrigger>
                       <SelectContent>
                         {userContracts
-                          .filter((c) => c.status === "Activo")
+                          // CORRECTED: Filter by lowercase 'activo'
+                          .filter((c) => c.status === "activo")
                           .map((contract) => (
                             <SelectItem key={contract.id} value={contract.id}>
                               {contract.propertyName} (

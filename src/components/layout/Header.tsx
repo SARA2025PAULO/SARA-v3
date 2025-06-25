@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useAuth } from "@/contexts/AuthContext";
-import { SidebarTrigger } from "@/components/ui/sidebar"; // Assuming sidebar trigger is needed here
+import { SidebarTrigger } from "@/components/ui/sidebar";
 
 export function Header() {
   const { currentUser, logout, isLoggedIn } = useAuth();
@@ -41,7 +41,8 @@ export function Header() {
             <DropdownMenuTrigger asChild>
               <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                 <Avatar className="h-9 w-9">
-                  <AvatarImage src={currentUser.displayName || ""} alt={currentUser.displayName || "User"} />
+                  {/* Corrected: Use photoURL for src and provide a valid alt text */}
+                  <AvatarImage src={currentUser.photoURL || undefined} alt={currentUser.displayName || "User Avatar"} />
                   <AvatarFallback>{getInitials(currentUser.displayName)}</AvatarFallback>
                 </Avatar>
               </Button>
@@ -53,7 +54,7 @@ export function Header() {
                   <p className="text-xs leading-none text-muted-foreground">
                     {currentUser.email}
                   </p>
-                  <p className="text-xs leading-none text-muted-foreground pt-1"> {/* Removed font-semibold */}
+                  <p className="text-xs leading-none text-muted-foreground pt-1">
                     Rol: {currentUser.role || "No asignado"}
                   </p>
                 </div>

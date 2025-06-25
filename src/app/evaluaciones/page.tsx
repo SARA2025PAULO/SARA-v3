@@ -7,7 +7,7 @@ import { EvaluationFormDialog, type EvaluationFormValues } from "@/components/ev
 import { TenantEvaluationConfirmationDialog, type ConfirmationFormValues } from "@/components/evaluaciones/TenantEvaluationConfirmationDialog";
 import { EvaluationCard } from "@/components/evaluaciones/EvaluationCard";
 import type { Evaluation, Contract } from "@/types";
-import { ClipboardCheck, PlusCircle, Search } from "lucide-react";
+import { ClipboardCheck, PlusCircle, Search, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
@@ -23,65 +23,54 @@ import {
   orderBy,
   updateDoc,
   serverTimestamp,
-  collectionGroup
 } from "firebase/firestore";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function EvaluacionesPage() {
   const { currentUser } = useAuth();
   const { toast } = useToast();
   
   const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
-  const [userContracts, setUserContracts] = useState<Contract[]>([]); // For landlord to select contract to evaluate
+  const [userContracts, setUserContracts] = useState<Contract[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [isEvaluationFormOpen, setIsEvaluationFormOpen] = useState(false);
-  const [selectedContractForEval, setSelectedContractForEval] = useState<Contract | null>(null);
-
   const [isConfirmationFormOpen, setIsConfirmationFormOpen] = useState(false);
   const [evaluationToConfirm, setEvaluationToConfirm] = useState<Evaluation | null>(null);
   
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<"todos" | Evaluation["status"]>("todos");
 
-  const fetchUserContracts = useCallback(async () => {
-    if (currentUser?.role === "Arrendador" && db) {
-      try {
-        const contractsRef = collection(db, "contracts");
-        const q = query(contractsRef, 
-          where("landlordId", "==", currentUser.uid),
-          where("status", "in", ["Activo", "Finalizado"]) 
-        );
-        const contractsSnapshot = await getDocs(q);
-        const fetchedContracts = contractsSnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Contract));
-        setUserContracts(fetchedContracts);
-      } catch (error) {
-        console.error("Error fetching landlord's contracts:", error);
-        toast({ title: "Error", description: "No se pudieron cargar tus contratos.", variant: "destructive" });
-      }
-    }
-  }, [currentUser, toast]);
-
-  const fetchEvaluations = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     if (!currentUser || !db) {
       setIsLoading(false);
-      setEvaluations([]);
       return;
     }
+
     setIsLoading(true);
     try {
-      const evaluationsCollectionRef = collection(db, "evaluations");
-      let q;
+      let fetchedContracts: Contract[] = [];
       if (currentUser.role === "Arrendador") {
-        q = query(evaluationsCollectionRef, where("landlordId", "==", currentUser.uid), orderBy("evaluationDate", "desc"));
-      } else if (currentUser.role === "Inquilino") {
-        q = query(evaluationsCollectionRef, where("tenantId", "==", currentUser.uid), orderBy("evaluationDate", "desc"));
-      } else {
-        setEvaluations([]);
-        setIsLoading(false);
-        return;
+        const contractsRef = collection(db, "contracts");
+        // CORRECTED to lowercase 'activo' and 'finalizado'
+        const q = query(contractsRef, 
+          where("landlordId", "==", currentUser.uid),
+          where("status", "in", ["activo", "finalizado"]) 
+        );
+        const contractsSnapshot = await getDocs(q);
+        
+        console.log(`[EvaluacionesPage] Found ${contractsSnapshot.docs.length} active or finished contracts for user ${currentUser.uid}`);
+
+        fetchedContracts = contractsSnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Contract));
+        setUserContracts(fetchedContracts);
       }
-      const querySnapshot = await getDocs(q);
+
+      const evaluationsCollectionRef = collection(db, "evaluations");
+      const fieldPath = currentUser.role === "Arrendador" ? "landlordId" : "tenantId";
+      const qEvaluations = query(evaluationsCollectionRef, where(fieldPath, "==", currentUser.uid), orderBy("evaluationDate", "desc"));
+      
+      const querySnapshot = await getDocs(qEvaluations);
       const fetchedEvaluations = querySnapshot.docs.map(docSnap => {
         const data = docSnap.data();
         return {
@@ -92,20 +81,19 @@ export default function EvaluacionesPage() {
         } as Evaluation;
       });
       setEvaluations(fetchedEvaluations);
+
     } catch (error) {
-      console.error("Error fetching evaluations:", error);
-      toast({ title: "Error al Cargar Evaluaciones", description: "No se pudieron obtener las evaluaciones.", variant: "destructive" });
+      console.error("Error fetching data:", error);
+      toast({ title: "Error al Cargar Datos", description: "No se pudieron obtener los datos necesarios.", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   }, [currentUser, toast]);
 
   useEffect(() => {
-    fetchEvaluations();
-    if (currentUser?.role === "Arrendador") {
-      fetchUserContracts();
-    }
-  }, [currentUser, fetchEvaluations, fetchUserContracts]);
+    fetchData();
+  }, [fetchData]);
+
 
   const handleCreateEvaluation = async (values: EvaluationFormValues) => {
     if (!currentUser || currentUser.role !== "Arrendador" || !db) {
@@ -122,7 +110,7 @@ export default function EvaluacionesPage() {
         return;
       }
 
-      const evaluationData: Omit<Evaluation, 'id' | 'evaluationDate' | 'status' | 'tenantComment' | 'tenantConfirmedAt' | 'overallRating'> & { evaluationDate: any, status: EvaluationStatus } = {
+      const evaluationData: Omit<Evaluation, 'id' | 'evaluationDate' | 'status' | 'tenantComment' | 'tenantConfirmedAt' | 'overallRating'> & { evaluationDate: any, status: Evaluation["status"] } = {
         contractId: contractToEvaluate.id,
         propertyId: contractToEvaluate.propertyId,
         propertyName: contractToEvaluate.propertyName || "N/A",
@@ -138,9 +126,8 @@ export default function EvaluacionesPage() {
       await addDoc(collection(db, "evaluations"), evaluationData);
       
       toast({ title: "Evaluación Creada", description: `La evaluación para ${contractToEvaluate.tenantName || contractToEvaluate.tenantEmail} ha sido creada y está pendiente de confirmación.` });
-      fetchEvaluations(); 
+      fetchData(); 
       setIsEvaluationFormOpen(false);
-      setSelectedContractForEval(null);
     } catch (error) {
       console.error("Error creating evaluation:", error);
       toast({ title: "Error al Crear Evaluación", description: "No se pudo guardar la evaluación.", variant: "destructive" });
@@ -164,30 +151,24 @@ export default function EvaluacionesPage() {
         tenantConfirmedAt: serverTimestamp(),
       });
       toast({ title: "Evaluación Confirmada", description: "Has confirmado la recepción y tu comentario ha sido guardado." });
-      fetchEvaluations();
+      fetchData();
       setIsConfirmationFormOpen(false);
       setEvaluationToConfirm(null);
     } catch (error) {
-      console.error("Error confirming evaluation:", error);
+      console.error("Error al Confirmar", error);
       toast({ title: "Error al Confirmar", description: "No se pudo guardar tu confirmación.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const openEvaluationDialog = (contract?: Contract) => {
-    setSelectedContractForEval(contract || null); // Could be null if general "create" button is used
-    setIsEvaluationFormOpen(true);
-  };
+  const openEvaluationDialog = () => setIsEvaluationFormOpen(true);
   
   const openConfirmationDialog = (evaluation: Evaluation) => {
     setEvaluationToConfirm(evaluation);
     setIsConfirmationFormOpen(true);
   };
 
-  if (isLoading && evaluations.length === 0) return <div className="p-4">Cargando evaluaciones...</div>;
-
-  const evaluationStatusOptions: (Evaluation["status"] | "todos")[] = ["todos", "pendiente de confirmacion", "recibida"];
   const userRole = currentUser?.role;
 
   const filteredEvaluations = evaluations
@@ -198,17 +179,33 @@ export default function EvaluacionesPage() {
       (userRole === "Inquilino" && (e.landlordName || "").toLowerCase().includes(searchTerm.toLowerCase()))
     );
   
+  // --- RENDER LOGIC ---
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center"><Skeleton className="h-10 w-1/3" /><Skeleton className="h-10 w-48" /></div>
+        <Skeleton className="h-16 w-full" />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <Skeleton className="h-48 w-full" /><Skeleton className="h-48 w-full" /><Skeleton className="h-48 w-full" />
+        </div>
+      </div>
+    );
+  }
+  
   return (
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
         <h1 className="text-3xl font-bold font-headline flex items-center"><ClipboardCheck className="h-8 w-8 mr-2 text-primary"/> Gestión de Evaluaciones</h1>
         {userRole === "Arrendador" && (
-          <Button onClick={() => openEvaluationDialog()} size="lg" disabled={isSubmitting || userContracts.length === 0}>
-            <PlusCircle className="mr-2 h-5 w-5" /> Crear Nueva Evaluación
-          </Button>
-        )}
-         {userRole === "Arrendador" && userContracts.length === 0 && !isLoading && (
-            <p className="text-sm text-muted-foreground">Debes tener contratos activos o finalizados para crear evaluaciones.</p>
+          <div className="flex flex-col items-end">
+            <Button onClick={openEvaluationDialog} size="lg" disabled={isSubmitting || userContracts.length === 0}>
+              {isSubmitting ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <PlusCircle className="mr-2 h-5 w-5" />}
+              Crear Nueva Evaluación
+            </Button>
+            {userContracts.length === 0 && (
+              <p className="text-sm text-muted-foreground mt-2">Debes tener contratos activos o finalizados para crear evaluaciones.</p>
+            )}
+          </div>
         )}
       </div>
 
@@ -225,7 +222,7 @@ export default function EvaluacionesPage() {
         </div>
         <Tabs value={statusFilter} onValueChange={(value) => setStatusFilter(value as any)}>
           <TabsList className="overflow-x-auto whitespace-nowrap">
-            {evaluationStatusOptions.map(status => (
+            {["todos", "pendiente de confirmacion", "recibida"].map(status => (
               <TabsTrigger key={status} value={status} className="capitalize px-3 py-1.5 text-sm">
                 {status === "todos" ? "Todas" : status.charAt(0).toUpperCase() + status.slice(1)}
               </TabsTrigger>
@@ -239,13 +236,7 @@ export default function EvaluacionesPage() {
           <ClipboardCheck className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
           <h3 className="text-xl font-semibold">No se encontraron evaluaciones</h3>
           <p className="text-muted-foreground">
-            {searchTerm || statusFilter !== "todos" ? "Intenta con otros filtros. " : ""}
-            {userRole === "Arrendador" && 
-              <Button variant="link" className="p-0 h-auto" onClick={() => openEvaluationDialog()} disabled={userContracts.length === 0}>
-                Crea una nueva evaluación
-              </Button>
-            }
-            {userRole === "Inquilino" && "No has recibido evaluaciones o no hay evaluaciones que coincidan con los filtros."}
+            {searchTerm || statusFilter !== "todos" ? "Intenta con otros filtros. " : (userRole === "Arrendador" ? "Crea una nueva evaluación para empezar." : "Aún no has recibido ninguna evaluación.")}
           </p>
         </div>
       ) : (
@@ -268,9 +259,6 @@ export default function EvaluacionesPage() {
           onOpenChange={setIsEvaluationFormOpen}
           onSave={handleCreateEvaluation}
           landlordContracts={userContracts}
-          // Pass targetTenantName and targetPropertyName if selectedContractForEval is set
-          targetTenantName={selectedContractForEval?.tenantName || selectedContractForEval?.tenantEmail}
-          targetPropertyName={selectedContractForEval?.propertyName}
         />
       )}
 
