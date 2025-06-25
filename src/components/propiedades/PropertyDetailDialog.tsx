@@ -6,23 +6,12 @@ import {
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  DialogClose,
+  DialogFooter,
 } from "@/components/ui/dialog";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { Property } from "@/types";
-import {
-  MapPin,
-  Tag,
-  User,
-  Home,
-  Ruler,
-  DollarSign,
-  FileText,
-  Calendar,
-  Building,
-  Globe,
-} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Building, MapPin, DollarSign, Bed, Bath, Ruler, Mail } from "lucide-react";
 
 interface PropertyDetailDialogProps {
   property: Property | null;
@@ -30,110 +19,59 @@ interface PropertyDetailDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-export function PropertyDetailDialog({
-  property,
-  open,
-  onOpenChange,
-}: PropertyDetailDialogProps) {
+export function PropertyDetailDialog({ property, open, onOpenChange }: PropertyDetailDialogProps) {
   if (!property) return null;
 
-  const getStatusVariant = (status: string | undefined) => {
-    switch (status) {
-      case "Disponible":
-        return "bg-green-500 hover:bg-green-600 text-white";
-      case "Arrendada":
-        return "bg-blue-500 hover:bg-blue-600 text-white";
-      case "Mantenimiento":
-        return "bg-yellow-500 hover:bg-yellow-600 text-white";
-      default:
-        return "bg-secondary text-secondary-foreground";
-    }
-  };
-
-  const DetailRow = ({
-    icon: Icon,
-    label,
-    value,
-  }: {
-    icon: React.ElementType;
-    label: string;
-    value?: string | number | null;
-  }) => (
-    <div className="flex items-start text-sm py-2 border-b border-muted/50">
-      <Icon className="h-5 w-5 mr-3 mt-0.5 text-primary/80" />
-      <div className="flex flex-col">
-        <span className="font-semibold text-foreground/90">{label}</span>
-        <span className="text-muted-foreground">
-          {value || "No especificado"}
-        </span>
-      </div>
-    </div>
-  );
+  const statusVariant = property.status === "Disponible" ? "bg-green-500 text-white" : property.status === "Arrendada" ? "bg-orange-400 text-orange-900" : "bg-gray-300 text-gray-700";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold font-headline flex items-center">
-            <Building className="h-6 w-6 mr-2" />
-            Detalles de la Propiedad
-          </DialogTitle>
+          <DialogTitle className="text-2xl font-headline">{property.address}</DialogTitle>
           <DialogDescription>
-            Información completa de la propiedad registrada.
+            <Badge className={`${statusVariant} text-sm mt-1`}>{property.status}</Badge>
           </DialogDescription>
         </DialogHeader>
-        <div className="max-h-[70vh] overflow-y-auto pr-4 space-y-1">
-          <DetailRow
-            icon={Tag}
-            label="Código de Propiedad"
-            value={property.propertyCode}
-          />
-          <DetailRow
-            icon={User}
-            label="Nombre del Propietario"
-            value={property.ownerName}
-          />
-          <DetailRow
-            icon={MapPin}
-            label="Dirección"
-            value={`${property.address}, ${property.comuna}`}
-          />
-          <DetailRow icon={Globe} label="Región" value={property.region} />
-          <DetailRow
-            icon={Home}
-            label="Tipo de Propiedad"
-            value={property.propertyType}
-          />
-          {property.m2 && (
-            <DetailRow icon={Ruler} label="Metros Cuadrados" value={`${property.m2} m²`} />
+        <div className="grid gap-6 py-4">
+          {property.imageUrl && (
+            <div className="w-full h-64 rounded-lg overflow-hidden">
+                <img src={property.imageUrl} alt={`Imagen de ${property.address}`} className="w-full h-full object-cover" />
+            </div>
           )}
-          {property.price && (
-            <DetailRow
-              icon={DollarSign}
-              label="Precio Mensual"
-              value={`$${property.price.toLocaleString("es-CL")}`}
-            />
-          )}
-          <div className="flex items-center text-sm py-2 border-b border-muted/50">
-            <Calendar className="h-5 w-5 mr-3 text-primary/80" />
-            <div className="flex flex-col">
-              <span className="font-semibold text-foreground/90">Estado</span>
-              <Badge className={`mt-1 w-fit ${getStatusVariant(property.status)}`}>
-                {property.status}
-              </Badge>
+          
+          <div className="space-y-4">
+            <p className="text-muted-foreground">{property.description}</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5 text-primary" />
+                    <strong>Precio:</strong> ${property.price?.toLocaleString('es-CL') ?? 'No especificado'}
+                </div>
+                <div className="flex items-center gap-2">
+                    <Bed className="h-5 w-5 text-primary" />
+                    <strong>Habitaciones:</strong> {property.bedrooms ?? 'No especificado'}
+                </div>
+                <div className="flex items-center gap-2">
+                    <Bath className="h-5 w-5 text-primary" />
+                    <strong>Baños:</strong> {property.bathrooms ?? 'No especificado'}
+                </div>
+                <div className="flex items-center gap-2">
+                    <Ruler className="h-5 w-5 text-primary" />
+                    <strong>Área:</strong> {property.area ? `${property.area} m²` : 'No especificado'}
+                </div>
+                 {property.potentialTenantEmail && (
+                    <div className="flex items-center gap-2 md:col-span-2">
+                        <Mail className="h-5 w-5 text-primary" />
+                        <strong>Potencial Inquilino:</strong> {property.potentialTenantEmail}
+                    </div>
+                )}
             </div>
           </div>
-          <DetailRow
-            icon={FileText}
-            label="Descripción"
-            value={property.description}
-          />
         </div>
-        <div className="flex justify-end pt-4">
-            <DialogClose asChild>
-                <Button type="button" variant="outline">Cerrar</Button>
-            </DialogClose>
-        </div>
+        <DialogFooter>
+          <Button onClick={() => onOpenChange(false)}>Cerrar</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

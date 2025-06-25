@@ -1,11 +1,11 @@
-
 "use client";
 
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { PropertyCard } from "@/components/propiedades/PropertyCard";
 import { PropertyFormDialog, type PropertyFormValues } from "@/components/propiedades/PropertyFormDialog";
-import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog"; // Importar ConfirmationDialog
+import { PropertyDetailDialog } from "@/components/propiedades/PropertyDetailDialog";
+import { ConfirmationDialog } from "@/components/ui/ConfirmationDialog";
 import type { Property } from "@/types";
 import { PlusCircle, Search, LayoutGrid, List, Edit3, Eye, Trash2 } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
@@ -17,7 +17,6 @@ import { collection, doc, setDoc, addDoc, getDocs, query, serverTimestamp, updat
 import { Card, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
-// Helper to create a placeholder Building2 icon
 const Building2 = (props: React.SVGProps<SVGSVGElement>) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
     <path d="M6 22V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v18"/>
@@ -37,8 +36,12 @@ export default function PropiedadesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
-  const [propertyToDelete, setPropertyToDelete] = useState<Property | null>(null); // State for deletion
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false); // State for deletion dialog
+  const [propertyToDelete, setPropertyToDelete] = useState<Property | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  
+  const [propertyToView, setPropertyToView] = useState<Property | null>(null);
+  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+
   const [searchTerm, setSearchTerm] = useState("");
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
@@ -85,7 +88,7 @@ export default function PropiedadesPage() {
   }, [currentUser, toast]);
   
   const handleSaveProperty = async (
-    values: PropertyFormValues, // These are the cleanedValues from PropertyFormDialog
+    values: PropertyFormValues,
     isEditing: boolean,
     originalPropertyId?: string
   ) => {
@@ -97,27 +100,11 @@ export default function PropiedadesPage() {
     setIsLoading(true); 
 
     try {
-      // Construct the base data object. `values` already contains cleaned data from the form dialog.
-      // Numeric fields that were empty strings are `undefined`.
-      // String fields (like imageUrl) that were empty strings are `""`.
-      // potentialTenantEmail is `undefined` if it was an empty string due to dialog cleaning.
-      const dataForFirestoreBase = {
-        ...values, 
-        ownerId: currentUser.uid,
-      };
-
-      // Remove any top-level properties that are explicitly undefined.
-      // Firestore does not accept 'undefined' as a field value.
-      // Empty strings ("") and null are acceptable, as are numbers like 0.
-      const cleanedDataForFirestore = Object.fromEntries(
-        Object.entries(dataForFirestoreBase).filter(([_, v]) => v !== undefined)
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ) as any; // Cast to any or a more specific type if needed for Firestore SDK
-
       if (isEditing && originalPropertyId) {
+        // Logic for EDITING an existing property
         const propertyDocRef = doc(db, "propiedades", originalPropertyId);
         const updatedPropertyData = {
-          ...cleanedDataForFirestore,
+          ...values,
           updatedAt: serverTimestamp(),
         };
         await setDoc(propertyDocRef, updatedPropertyData, { merge: true });
@@ -130,27 +117,20 @@ export default function PropiedadesPage() {
         toast({ title: "Propiedad Actualizada", description: `Los detalles de "${values.address}" se han guardado.` });
 
       } else { 
+        // Logic for ADDING a new property
         const propertiesCollectionRef = collection(db, "propiedades");
         const newPropertyData = {
-          ...cleanedDataForFirestore,
+          ...values,
+          ownerId: currentUser.uid,
+          status: "Disponible", // Force status to "Disponible" on creation
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
         };
         const newDocRef = await addDoc(propertiesCollectionRef, newPropertyData);
         
-        // Ensure all fields required by Property type are present for the state update
         const newPropertyForState: Property = {
             id: newDocRef.id,
-            address: newPropertyData.address,
-            status: newPropertyData.status as Property["status"],
-            description: newPropertyData.description,
-            ownerId: newPropertyData.ownerId,
-            imageUrl: newPropertyData.imageUrl, // Will be "" if it was ""
-            price: newPropertyData.price, // Will be number or undefined (but filtered out if undefined by cleanedDataForFirestore)
-            bedrooms: newPropertyData.bedrooms,
-            bathrooms: newPropertyData.bathrooms,
-            area: newPropertyData.area,
-            potentialTenantEmail: newPropertyData.potentialTenantEmail,
+            ...newPropertyData,
             createdAt: new Date().toISOString(), 
             updatedAt: new Date().toISOString(),
         };
@@ -188,7 +168,6 @@ export default function PropiedadesPage() {
     }
   };
 
-
   const handleAddNewProperty = () => {
     setEditingProperty(null);
     setIsFormOpen(true);
@@ -200,10 +179,8 @@ export default function PropiedadesPage() {
   };
 
   const handleViewDetails = (property: Property) => {
-    toast({ 
-      title: property.address, 
-      description: `Estado: ${property.status}. ${property.potentialTenantEmail ? `Potencial inquilino: ${property.potentialTenantEmail}` : ''} (Funcionalidad de vista detallada pendiente).`
-    });
+    setPropertyToView(property);
+    setIsDetailDialogOpen(true);
   };
 
   const filteredProperties = searchTerm === ""
@@ -271,7 +248,7 @@ export default function PropiedadesPage() {
                 />
              ) : (
                 <Card key={property.id} className="flex flex-col md:flex-row overflow-hidden shadow-md hover:shadow-lg transition-shadow">
-                    <img src={property.imageUrl || "https://placehold.co/200x150.png"} alt={property.address} className="w-full md:w-48 h-48 md:h-auto object-cover" data-ai-hint="property building" />
+                    <img src={property.imageUrl || "https://placehold.co/200x150.png"} alt={property.address} className="w-full md:w-48 h-48 md:h-auto object-cover" />
                     <div className="p-4 flex flex-col flex-grow">
                         <CardTitle className="text-lg font-semibold mb-1 font-headline">{property.address}</CardTitle>
                        <div className={`w-fit text-xs mb-2 px-2 py-0.5 rounded-full 
@@ -295,6 +272,7 @@ export default function PropiedadesPage() {
           ))}
         </div>
       )}
+      
       <PropertyFormDialog
         property={editingProperty}
         open={isFormOpen}
@@ -310,6 +288,11 @@ export default function PropiedadesPage() {
         confirmText="Eliminar"
         cancelText="Cancelar"
         isDestructive={true}
+      />
+      <PropertyDetailDialog
+        property={propertyToView}
+        open={isDetailDialogOpen}
+        onOpenChange={setIsDetailDialogOpen}
       />
     </div>
   );

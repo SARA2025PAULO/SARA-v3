@@ -94,9 +94,9 @@ const santiagoCommunes = [
 // Schema for property form validation
 export const propertyFormSchema = z.object({
   region: z.string().min(1, { message: "Debes seleccionar una región." }),
-  comuna: z.string().optional(), // Comuna is optional initially, required conditionally if region is Metropolitana
+  comuna: z.string().optional(),
   address: z.string().min(5, { message: "La dirección debe tener al menos 5 caracteres." }),
-  status: z.enum(["Disponible", "Arrendada", "Mantenimiento"], { required_error: "Debes seleccionar un estado." }),
+  status: z.enum(["Disponible", "Arrendada", "Mantenimiento"]).optional(), // Status is now optional
   type: z.enum(["Casa", "Departamento"], { required_error: "Debes seleccionar un tipo de propiedad." }),
   price: z.coerce.number().positive({ message: "El precio debe ser un número positivo." }).optional().or(z.literal('')),
   area: z.coerce.number().positive({ message: "El área debe ser un número positivo." }).optional().or(z.literal('')),
@@ -139,7 +139,6 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
 
   useEffect(() => {
     if (!open) return;
-    // Reset form with property data if editing, otherwise with default values
     form.reset(
       property
         ? {
@@ -158,7 +157,7 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
             region: "",
             comuna: "",
             address: "",
-            status: "Disponible",
+            status: "Disponible", // Default status for new properties
             type: "",
             price: undefined,
             area: undefined,
@@ -179,7 +178,6 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
       return;
     }
 
-    // Conditional validation for comuna if region is Metropolitana
     if (selectedRegion === "Metropolitana de Santiago" && !values.comuna) {
       form.setError("comuna", {
         type: "manual",
@@ -187,19 +185,24 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
       });
       return;
     }
-
+    
+    // Set status to "Disponible" if it's a new property
+    const finalValues = {
+      ...values,
+      status: isEditing ? values.status : "Disponible",
+    };
 
     const cleaned: PropertyFormValues = {
-      region: values.region,
-      comuna: values.comuna === '' ? undefined : values.comuna, // Store empty string as undefined in Firestore
-      address: values.address,
-      status: values.status,
-      type: values.type,
-      price: values.price === '' ? undefined : values.price,
-      area: values.area === '' ? undefined : values.area,
-      bedrooms: values.bedrooms === '' ? undefined : values.bedrooms,
-      bathrooms: values.bathrooms === '' ? undefined : values.bathrooms,
-      description: values.description,
+      region: finalValues.region,
+      comuna: finalValues.comuna === '' ? undefined : finalValues.comuna,
+      address: finalValues.address,
+      status: finalValues.status,
+      type: finalValues.type,
+      price: finalValues.price === '' ? undefined : finalValues.price,
+      area: finalValues.area === '' ? undefined : finalValues.area,
+      bedrooms: finalValues.bedrooms === '' ? undefined : finalValues.bedrooms,
+      bathrooms: finalValues.bathrooms === '' ? undefined : finalValues.bathrooms,
+      description: finalValues.description,
     };
 
     onSave(cleaned, isEditing, isEditing && property ? property.id : undefined);
@@ -217,7 +220,6 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1 pr-4">
 
-            {/* Campo Región */}
             <FormField
               control={form.control}
               name="region"
@@ -239,7 +241,6 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
               )}
             />
 
-            {/* Campo Comuna (condicional) */}
             {selectedRegion === "Metropolitana de Santiago" && (
               <FormField
                 control={form.control}
@@ -263,7 +264,6 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
               />
             )}
 
-            {/* Campo Dirección */}
             <FormField
               control={form.control}
               name="address"
@@ -278,29 +278,30 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
               )}
             />
 
-            {/* Campo Estado */}
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Estado</FormLabel>
-                  <FormControl>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                      <SelectTrigger><SelectValue placeholder="Selecciona un estado" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Disponible">Disponible</SelectItem>
-                        <SelectItem value="Arrendada">Arrendada</SelectItem>
-                        <SelectItem value="Mantenimiento">Mantenimiento</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {/* Status field is only shown when editing */
+            isEditing && (
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Estado</FormLabel>
+                    <FormControl>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <SelectTrigger><SelectValue placeholder="Selecciona un estado" /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Disponible">Disponible</SelectItem>
+                          <SelectItem value="Arrendada">Arrendada</SelectItem>
+                          <SelectItem value="Mantenimiento">Mantenimiento</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
-            {/* Campo Tipo de Propiedad */}
              <FormField
               control={form.control}
               name="type"
@@ -321,7 +322,6 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
               )}
             />
 
-            {/* Campos de detalles (Precio, Área, Habitaciones, Baños) en columnas */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={form.control}
@@ -379,7 +379,6 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
               />
             </div>
 
-            {/* Campo Descripción (al final) */}
             <FormField
               control={form.control}
               name="description"
