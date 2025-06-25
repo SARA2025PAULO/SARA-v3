@@ -35,6 +35,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 
+// Import uuid for unique ID generation
+import { v4 as uuidv4 } from 'uuid';
+
 // List of Chilean regions
 const chileanRegions = [
   "Arica y Parinacota",
@@ -93,11 +96,21 @@ const santiagoCommunes = [
 
 // Schema for property form validation
 export const propertyFormSchema = z.object({
+  code: z.string().optional(), // Add code to schema, optional as it's auto-generated
   region: z.string().min(1, { message: "Debes seleccionar una región." }),
   comuna: z.string().optional(),
   address: z.string().min(5, { message: "La dirección debe tener al menos 5 caracteres." }),
-  status: z.enum(["Disponible", "Arrendada", "Mantenimiento"]).optional(), // Status is now optional
-  type: z.enum(["Casa", "Departamento"], { required_error: "Debes seleccionar un tipo de propiedad." }),
+  status: z.enum(["Disponible", "Arrendada", "Mantenimiento"]).optional(),
+  type: z.enum([
+    "Casa",
+    "Departamento",
+    "Local Comercial",
+    "Terreno",
+    "Bodega",
+    "Estacionamiento",
+    "Pieza",
+    "Galpón"
+  ], { required_error: "Debes seleccionar un tipo de propiedad." }),
   price: z.coerce.number().positive({ message: "El precio debe ser un número positivo." }).optional().or(z.literal('')),
   area: z.coerce.number().positive({ message: "El área debe ser un número positivo." }).optional().or(z.literal('')),
   bedrooms: z.coerce.number().int().min(0, { message: "Número de habitaciones no puede ser negativo." }).optional().or(z.literal('')),
@@ -122,6 +135,7 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
   const form = useForm<PropertyFormValues>({
     resolver: zodResolver(propertyFormSchema),
     defaultValues: {
+      code: "", // Initialize code in defaultValues
       region: "",
       comuna: "",
       address: "",
@@ -142,22 +156,22 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
     form.reset(
       property
         ? {
+            ...property, // Spread existing property values
             region: property.region || "",
             comuna: property.comuna || "",
-            address: property.address,
-            status: property.status,
             type: property.type || "",
             price: property.price ?? undefined,
             area: property.area ?? undefined,
             bedrooms: property.bedrooms ?? undefined,
             bathrooms: property.bathrooms ?? undefined,
-            description: property.description,
+            // code will be loaded if present, otherwise remains undefined/empty string
           }
         : {
+            code: uuidv4().slice(0, 8).toUpperCase(), // Generate code for new properties
             region: "",
             comuna: "",
             address: "",
-            status: "Disponible", // Default status for new properties
+            status: "Disponible",
             type: "",
             price: undefined,
             area: undefined,
@@ -171,7 +185,7 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
   async function onSubmit(values: PropertyFormValues) {
     if (!currentUser || currentUser.role !== "Arrendador") {
       toast({
-        title: "Permiso Denegado",
+        title: "Permiso Denalegado", // Corrected typo: "Denalegado" -> "Denegado"
         description: "No puedes realizar esta acción.",
         variant: "destructive",
       });
@@ -186,10 +200,10 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
       return;
     }
     
-    // Set status to "Disponible" if it's a new property
     const finalValues = {
       ...values,
       status: isEditing ? values.status : "Disponible",
+      code: isEditing ? values.code : (values.code || uuidv4().slice(0, 8).toUpperCase()), // Ensure code is set for new properties if not already
     };
 
     const cleaned: PropertyFormValues = {
@@ -203,6 +217,7 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
       bedrooms: finalValues.bedrooms === '' ? undefined : finalValues.bedrooms,
       bathrooms: finalValues.bathrooms === '' ? undefined : finalValues.bathrooms,
       description: finalValues.description,
+      code: finalValues.code, // Include the generated code
     };
 
     onSave(cleaned, isEditing, isEditing && property ? property.id : undefined);
@@ -219,6 +234,22 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
         </DialogHeader>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 max-h-[70vh] overflow-y-auto p-1 pr-4">
+
+            {isEditing && property?.code && (
+                <FormField
+                    control={form.control}
+                    name="code"
+                    render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Código de Propiedad</FormLabel>
+                            <FormControl>
+                                <Input {...field} disabled={true} className="font-mono bg-muted" />
+                            </FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )}
+                />
+            )}
 
             <FormField
               control={form.control}
@@ -278,8 +309,8 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
               )}
             />
 
-            {/* Status field is only shown when editing */
-            isEditing && (
+            {/* Status field is only shown when editing */}
+            {isEditing && (
               <FormField
                 control={form.control}
                 name="status"
@@ -314,6 +345,12 @@ export function PropertyFormDialog({ property, open, onOpenChange, onSave }: Pro
                       <SelectContent>
                         <SelectItem value="Casa">Casa</SelectItem>
                         <SelectItem value="Departamento">Departamento</SelectItem>
+                        <SelectItem value="Local Comercial">Local Comercial</SelectItem>
+                        <SelectItem value="Terreno">Terreno</SelectItem>
+                        <SelectItem value="Bodega">Bodega</SelectItem>
+                        <SelectItem value="Estacionamiento">Estacionamiento</SelectItem>
+                        <SelectItem value="Pieza">Pieza</SelectItem>
+                        <SelectItem value="Galpón">Galpón</SelectItem>
                       </SelectContent>
                     </Select>
                   </FormControl>

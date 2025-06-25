@@ -12,6 +12,7 @@ export interface UserProfile {
 
 export interface Property {
   id: string;
+  code?: string; // Add this line for the automatic code
   address: string;
   status: "Disponible" | "Arrendada" | "Mantenimiento";
   description: string;
@@ -26,7 +27,7 @@ export interface Property {
   updatedAt?: string;
   region?: string;
   comuna?: string;
-  type?: "Casa" | "Departamento";
+  type?: "Casa" | "Departamento" | "Local Comercial" | "Terreno" | "Bodega" | "Estacionamiento" | "Pieza" | "Galpón";
 }
 
 export interface Contract {

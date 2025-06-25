@@ -4,7 +4,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { Property, UserRole } from "@/types";
-import { Building, MapPin, Edit3, Trash2 } from "lucide-react";
+import { Building, MapPin, Edit3, Trash2, Tag } from "lucide-react";
 
 interface PropertyCardProps {
   property: Property;
@@ -36,6 +36,12 @@ export function PropertyCard({
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-2 text-sm flex-grow">
+        {property.code && (
+          <div className="flex items-center text-muted-foreground">
+            <Tag className="h-4 w-4 mr-2 flex-shrink-0" />
+            <span className="font-mono text-xs">Código: {property.code}</span>
+          </div>
+        )}
         <div className="flex items-center">
           <MapPin className="h-4 w-4 mr-2 text-primary flex-shrink-0" />
           <span>{property.address}</span>
