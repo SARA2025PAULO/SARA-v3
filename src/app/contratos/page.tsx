@@ -7,7 +7,7 @@
       import type { ContractFormValues } from "@/components/contratos/ContractFormDialog";
       import { ContractApprovalDialog } from "@/components/contratos/ContractApprovalDialog";
       import { ContractObservationDialog } from "@/components/contratos/ContractObservationDialog";
-      import { ContractDetailDialog } from "@/components/contratos/ContractDetailDialog"; // CORRECTED: Changed '=>' to 'from'
+      import { ContractDetailDialog } from "@/components/contratos/ContractDetailDialog"; 
       import type { Contract, Property, UserProfile, ContractObservation, Announcement } from "@/types";
       import { PlusCircle, FileText, Search } from "lucide-react";
       import { useAuth } from "@/contexts/AuthContext";
@@ -449,12 +449,40 @@
           setIsObservationDialogOpen(true);
         };
         
+        // NEW: handleGenerateContractPdf function
+        const handleGenerateContractPdf = async (contract: Contract) => {
+            setIsGeneratingPdf(true);
+            try {
+                // THIS IS A PLACEHOLDER FOR A FIREBASE CLOUD FUNCTION CALL
+                // You would typically call a callable cloud function here, e.g.:
+                // const generatePdfFunction = httpsCallable(functions, 'generateContractPdf');
+                // const result = await generatePdfFunction({ contractId: contract.id, ...otherData });
+                // const pdfUrl = result.data.pdfUrl;
+
+                // For demonstration, let's just use a mock URL or the existingContractUrl if available
+                const mockPdfUrl = contract.existingContractUrl || "https://www.africau.edu/images/default/sample.pdf"; // Placeholder URL
+
+                if (mockPdfUrl) {
+                    window.open(mockPdfUrl, '_blank');
+                    toast({ title: "PDF Generado", description: "El contrato PDF se ha abierto en una nueva pestaña.", variant: "success" });
+                } else {
+                    toast({ title: "Error", description: "No se pudo obtener la URL del PDF.", variant: "destructive" });
+                }
+            } catch (error) {
+                console.error("Error generating PDF:", error);
+                toast({ title: "Error al Generar PDF", description: "Hubo un problema al generar el contrato PDF.", variant: "destructive" });
+            } finally {
+                setIsGeneratingPdf(false);
+            }
+        };
+
         const openContractDetailDialog = (contract: Contract) => {
           setContractToDisplayDetailsId(contract.id); 
           setIsApprovalDialogOpen(false); 
           setIsObservationDialogOpen(false); 
           // Only set this to true if a contract is actually found based on the ID
-          if (contract.id && contracts.find(c => c.id === contract.id)) { // Use contract.id directly for lookup
+          const foundContract = contracts.find(c => c.id === contract.id);
+          if (foundContract) { 
             setIsDetailDialogOpen(true);
           } else { 
             console.warn("Contract not found in current list for detail display:", contract.id);
@@ -586,6 +614,8 @@
                 currentUserRole={currentUser?.role || null}
                 onRespondToObservation={handleRespondToContractObservation}
                 isSubmittingResponse={isRespondingToObservation}
+                onGeneratePdf={handleGenerateContractPdf} 
+                isGeneratingPdf={isGeneratingPdf} 
               />
             )}
 

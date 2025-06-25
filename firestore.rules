@@ -1,0 +1,11 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // WARNING: Rules are temporarily open for development.
+    // Any authenticated user can read, write, and delete any data.
+    // This is insecure and should NOT be used in production.
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

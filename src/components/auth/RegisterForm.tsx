@@ -29,6 +29,8 @@ import { useRouter } from "next/navigation";
 import type { UserRole } from "@/types";
 import { useAuth } from "@/contexts/AuthContext";
 import { UserPlus } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import Link from "next/link";
 
 const formSchema = z.object({
   displayName: z.string().min(2, { message: "El nombre debe tener al menos 2 caracteres."}),
@@ -36,6 +38,9 @@ const formSchema = z.object({
   password: z.string().min(6, { message: "La contraseña debe tener al menos 6 caracteres." }),
   confirmPassword: z.string().min(6, { message: "La contraseña debe tener al menos 6 caracteres." }),
   role: z.enum(["Arrendador", "Inquilino"], { required_error: "Debes seleccionar un rol." }),
+  acceptTerms: z.boolean().refine(val => val === true, {
+    message: "Debes aceptar los términos y condiciones para continuar.",
+  }),
 }).refine(data => data.password === data.confirmPassword, {
   message: "Las contraseñas no coinciden.",
   path: ["confirmPassword"],
@@ -54,6 +59,7 @@ export function RegisterForm() {
       password: "",
       confirmPassword: "",
       role: undefined, // Arrendador or Inquilino
+      acceptTerms: false,
     },
   });
 
@@ -73,7 +79,7 @@ export function RegisterForm() {
         title: "Registro Exitoso",
         description: "Tu cuenta ha sido creada. Ahora puedes iniciar sesión.",
       });
-      router.push("/login?registered=true"); // Or directly to /dashboard if auto-login is desired
+      router.push("/login?registered=true");
     } catch (error: any) {
       console.error("Error during registration:", error);
       let errorMessage = "Ocurrió un error durante el registro.";
@@ -164,6 +170,30 @@ export function RegisterForm() {
                 Esto determinará cómo usas S.A.R.A.
               </FormDescription>
               <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="acceptTerms"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <div className="space-y-1 leading-none">
+                <FormLabel>
+                  Acepto los{" "}
+                  <Link href="/terminos-y-condiciones" className="text-blue-600 hover:underline" target="_blank">
+                    términos y condiciones
+                  </Link>
+                  .
+                </FormLabel>
+                <FormMessage />
+              </div>
             </FormItem>
           )}
         />
