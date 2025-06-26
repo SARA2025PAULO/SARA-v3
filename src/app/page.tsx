@@ -44,7 +44,7 @@ const LandingPage = () => {
         className="fixed top-0 left-0 right-0 z-50 bg-sara-white shadow-md py-4 px-8 flex justify-between items-center"
       >
         <div className="flex items-center space-x-2">
-          <Image src="/Images/logo.png" alt="S.A.R.A. Logo" width={100} height={40} priority />
+          <Image src="/Images/logo.png" alt="S.A.R.A. Logo" width={70} height={28} className="md:w-[100px] md:h-[40px]" priority />
         </div>
         <nav className="hidden md:flex items-center space-x-8">
           <a href="#hero" className="flex flex-col items-center text-sara-text hover:text-sara-primary transition-colors">
