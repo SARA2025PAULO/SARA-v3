@@ -46,13 +46,15 @@ export default function PagosPage() {
   const fetchTenantActiveContracts = useCallback(async () => {
     if (currentUser?.role === "Inquilino" && db) {
       try {
+        console.log("Fetching contracts for tenantId:", currentUser.uid); // Log tenant UID
         const contractsRef = collection(db, "contracts");
         const q = query(contractsRef, 
           where("tenantId", "==", currentUser.uid),
-          where("status", "==", "Activo") 
+          where("status", "in", ["Activo", "activo"]) // Modificado para buscar 'Activo' o 'activo'
         );
         const contractsSnapshot = await getDocs(q);
         const fetchedContracts = contractsSnapshot.docs.map(docSnap => ({ id: docSnap.id, ...docSnap.data() } as Contract));
+        console.log("Fetched contracts:", fetchedContracts); // Log fetched contracts
         setTenantActiveContracts(fetchedContracts);
       } catch (error) {
         console.error("Error fetching tenant's active contracts:", error);

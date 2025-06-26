@@ -172,11 +172,6 @@ export function ContractCard({
             <MessageSquarePlus className="h-4 w-4 mr-1" /> Hacer Observación
           </Button>
         )}
-        {userRole?.toLowerCase() === "arrendador" && onManage && (
-          <Button variant="default" size="sm" onClick={() => onManage(contract)}>
-            <Edit3 className="h-4 w-4 mr-1" /> Gestionar Contrato
-          </Button>
-        )}
          {showDeclareInitialStateButton && onDeclareInitialState && (
           <Button variant="secondary" size="sm" onClick={() => onDeclareInitialState(contract)}>
             <Archive className="h-4 w-4 mr-1" /> Declarar Estado Inicial

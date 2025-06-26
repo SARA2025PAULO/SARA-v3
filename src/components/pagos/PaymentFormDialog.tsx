@@ -73,7 +73,7 @@ export function PaymentFormDialog({
   const form = useForm<PaymentFormValues>({
     resolver: zodResolver(paymentFormSchema),
     defaultValues: {
-      contractId: tenantContracts.find((c) => c.status === "Activo")?.id || "",
+      contractId: tenantContracts.find((c) => c.status === "Activo" || c.status === "activo")?.id || "", // Modificado
       type: "arriendo", 
       amount: 0,
       paymentDate: new Date().toISOString().split('T')[0], 
@@ -117,7 +117,7 @@ export function PaymentFormDialog({
     });
 
     form.reset({
-      contractId: tenantContracts.find((c) => c.status === "Activo")?.id || "",
+      contractId: tenantContracts.find((c) => c.status === "Activo" || c.status === "activo")?.id || "", // Modificado
       type: "arriendo",
       amount: 0,
       paymentDate: new Date().toISOString().split('T')[0],
@@ -134,7 +134,7 @@ export function PaymentFormDialog({
         onOpenChange(isOpen);
         if (!isOpen) {
           form.reset({
-            contractId: tenantContracts.find((c) => c.status === "Activo")?.id || "",
+            contractId: tenantContracts.find((c) => c.status === "Activo" || c.status === "activo")?.id || "", // Modificado
             type: "arriendo",
             amount: 0,
             paymentDate: new Date().toISOString().split('T')[0],
@@ -173,7 +173,7 @@ export function PaymentFormDialog({
                     </FormControl>
                     <SelectContent>
                       {tenantContracts
-                        .filter((c) => c.status === "Activo")
+                        .filter((c) => c.status === "Activo" || c.status === "activo") // Modificado
                         .map((contract) => (
                           <SelectItem key={contract.id} value={contract.id}>
                             {contract.propertyName} ({contract.landlordName})
