@@ -36,59 +36,53 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.uploadProperties = exports.passwordRecovery = exports.sendContractInvitation = exports.testEmailRest = exports.helloWorld = void 0;
-// firebase-functions/src/index.ts
+exports.sendEmailOnCreate = void 0;
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
-const node_fetch_1 = __importDefault(require("node-fetch"));
-const passwordRecovery_1 = require("./passwordRecovery");
-Object.defineProperty(exports, "passwordRecovery", { enumerable: true, get: function () { return passwordRecovery_1.passwordRecovery; } });
-const uploadProperties_1 = require("./uploadProperties");
-Object.defineProperty(exports, "uploadProperties", { enumerable: true, get: function () { return uploadProperties_1.uploadProperties; } });
-const sendContractInvitation_1 = require("./sendContractInvitation");
-Object.defineProperty(exports, "sendContractInvitation", { enumerable: true, get: function () { return sendContractInvitation_1.sendContractInvitation; } });
+// Correctly import the SendGrid mail service object
+const mail_1 = __importDefault(require("@sendgrid/mail"));
 admin.initializeApp();
-// 0. Función de prueba mínima para aislar problemas de despliegue
-exports.helloWorld = functions.https.onRequest((req, res) => {
-    res.send('¡Hola Mundo!');
-});
-// 1. Función de prueba HTTP usando la API REST de SendGrid
-exports.testEmailRest = functions.https.onRequest(async (req, res) => {
-    const sendgridApiKey = functions.config().sendgrid?.key;
-    if (!sendgridApiKey) {
-        console.error('SendGrid API key not configured.');
-        res.status(500).send('SendGrid API key not configured.');
+// It's crucial to set the SendGrid API Key in your Firebase environment.
+// Use this command to set it:
+// firebase functions:config:set sendgrid.key="YOUR_SENDGRID_API_KEY"
+const SENDGRID_API_KEY = functions.config().sendgrid?.key;
+if (SENDGRID_API_KEY) {
+    // Now this call will work because sgMail is the correct object
+    mail_1.default.setApiKey(SENDGRID_API_KEY);
+}
+else {
+    console.error('FATAL ERROR: SendGrid API key is not configured. Emails will fail to send.');
+}
+/**
+ * Triggered by the creation of a document in the 'mail' collection.
+ * This function sends an email using the data from the new document.
+ */
+exports.sendEmailOnCreate = functions.firestore
+    .document('mail/{mailId}')
+    .onCreate(async (snap, context) => {
+    if (!SENDGRID_API_KEY) {
+        console.error('Could not send email because SendGrid API Key is not set.');
         return;
     }
+    const mailData = snap.data();
     const msg = {
-        personalizations: [{ to: [{ email: 'destinatario@ejemplo.com' }] }],
-        from: { email: 'notificaciones@sarachile.com' },
-        subject: 'Prueba vía REST desde Firebase',
-        content: [{ type: 'text/plain', value: '¡Hola desde REST API!' }],
+        to: mailData.to,
+        from: 'notificaciones@sarachile.com', // This must be a verified sender in SendGrid
+        subject: mailData.message.subject,
+        html: mailData.message.html,
     };
     try {
-        console.log('SendGrid API Key (partial):', sendgridApiKey.substring(0, 5) + '...');
-        const response = await (0, node_fetch_1.default)('https://api.sendgrid.com/v3/mail/send', {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${sendgridApiKey}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(msg),
-        });
-        const responseBody = await response.text();
-        console.log(`Status - ${response.status}, Body - ${responseBody}`);
-        if (response.ok) {
-            console.log('Correo REST enviado con éxito (testEmailRest)');
-            res.status(200).send('Correo REST enviado con éxito (testEmailRest)');
-        }
-        else {
-            console.error(`Error enviando correo REST: ${response.status} - ${responseBody}`);
-            res.status(500).send('Error enviando correo REST');
-        }
+        console.log(`Attempting to send email to ${msg.to}`);
+        await mail_1.default.send(msg);
+        console.log('Email sent successfully via SendGrid.');
     }
     catch (error) {
-        console.error('Error in testEmailRest function:', error);
-        res.status(500).send('Error en testEmailRest');
+        console.error('Error sending email with SendGrid:');
+        if (error.response) {
+            console.error(error.response.body);
+        }
+        else {
+            console.error(error);
+        }
     }
 });

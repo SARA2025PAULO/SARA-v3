@@ -1,9 +1,10 @@
+
 'use client';
 
 import React from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
-import Link from 'next/link'; // Importar Link para la navegación
+import Link from 'next/link';
 import {
   Save,
   Bell,
@@ -15,20 +16,20 @@ import {
   Facebook,
   Twitter,
   Linkedin,
-  ShieldCheck, // Icono para la frase destacada
-  AlertTriangle, // Icono para Gestión de incidentes
+  ShieldCheck,
+  AlertTriangle,
 } from 'lucide-react';
 
-// Componente de botón actualizado para usar una imagen como CTA
+// El href apunta a /solicitar-demo
 const ImageButton = ({ src, alt, className, width, height }: { src: string; alt: string; className?: string; width: number; height: number; }) => (
-  <Link href="/login" passHref>
+  <Link href="/solicitar-demo" passHref>
     <motion.div
       className={`relative cursor-pointer inline-block ${className}`}
       whileHover={{ scale: 1.05, filter: 'brightness(1.1)' }}
       whileTap={{ scale: 0.95 }}
       transition={{ type: 'spring', stiffness: 400, damping: 17 }}
     >
-      <Image src={src} alt={alt} width={width} height={height} />
+      <Image src={src} alt={alt} width={width} height={height} style={{ width: 'auto', height: 'auto' }} />
     </motion.div>
   </Link>
 );
@@ -41,32 +42,33 @@ const LandingPage = () => {
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5, delay: 0.2 }}
-        className="fixed top-0 left-0 right-0 z-50 bg-sara-white shadow-md py-4 px-8 flex justify-between items-center"
+        className="fixed top-0 left-0 right-0 z-50 bg-sara-white shadow-md h-14 flex justify-between items-center px-4 md:px-8"
       >
         <div className="flex items-center space-x-2">
-          <Image src="/Images/logo.png" alt="S.A.R.A. Logo" width={70} height={28} className="md:w-[100px] md:h-[40px]" priority />
+          {/* Adjusted logo to fit within the new fixed-height header */}
+          <Image src="/Images/logo2.png" alt="S.A.R.A. Logo" width={80} height={32} priority style={{ width: 'auto', height: 'auto' }} />
         </div>
         <nav className="hidden md:flex items-center space-x-8">
           <a href="#hero" className="flex flex-col items-center text-sara-text hover:text-sara-primary transition-colors">
-            <Image src="/Images/icon-contratos.png" alt="Contratos Icon" width={24} height={24} />
+            <Image src="/Images/icon-contratos.png" alt="Contratos Icon" width={24} height={24} style={{ width: 'auto', height: 'auto' }} />
             <span className="text-xs mt-1">Contratos</span>
           </a>
           <a href="#como-funciona" className="flex flex-col items-center text-sara-text hover:text-sara-primary transition-colors">
-            <Image src="/Images/icon.propiedades.png" alt="Propiedades Icon" width={24} height={24} />
+            <Image src="/Images/icon.propiedades.png" alt="Propiedades Icon" width={24} height={24} style={{ width: 'auto', height: 'auto' }} />
             <span className="text-xs mt-1">Propiedades</span>
           </a>
           <a href="#como-funciona" className="flex flex-col items-center text-sara-text hover:text-sara-primary transition-colors">
-            <Image src="/Images/icon.calendario.png" alt="Calendario Icon" width={24} height={24} />
+            <Image src="/Images/icon.calendario.png" alt="Calendario Icon" width={24} height={24} style={{ width: 'auto', height: 'auto' }} />
             <span className="text-xs mt-1">Calendario</span>
           </a>
           <a href="#como-funciona" className="flex flex-col items-center text-sara-text hover:text-sara-primary transition-colors">
-            <Image src="/Images/icon.informe.png" alt="Informe Icon" width={24} height={24} />
+            <Image src="/Images/icon.informe.png" alt="Informe Icon" width={24} height={24} style={{ width: 'auto', height: 'auto' }} />
             <span className="text-xs mt-1">Informe</span>
           </a>
         </nav>
-        {/* Botón de imagen CTA en el Header */}
         <div className="hidden md:block">
-          <ImageButton src="/Images/CTA.png" alt="Prueba gratis" width={150} height={50} />
+          {/* Adjusted button to fit within the new fixed-height header */}
+          <ImageButton src="/Images/CTA.png" alt="Prueba gratis" width={120} height={32} />
         </div>
       </motion.header>
 
@@ -94,7 +96,6 @@ const LandingPage = () => {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, delay: 0.8 }}
           >
-            {/* Botón de imagen CTA grande en el Hero */}
             <ImageButton src="/Images/CTA.png" alt="Prueba gratis" width={200} height={60} />
           </motion.div>
         </div>
@@ -268,6 +269,7 @@ const LandingPage = () => {
                   src="/Images/hero-banner.png"
                   alt="Dashboard S.A.R.A."
                   fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   style={{ objectFit: 'contain' }}
                   className="rounded-md shadow-inner"
                 />
@@ -293,11 +295,11 @@ const LandingPage = () => {
               src="/Images/ley-devuelveme-mi-casa.png"
               alt="Documentación Ley Devuélveme mi Casa"
               fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               style={{ objectFit: 'contain' }}
               className="rounded-lg shadow-xl"
             />
             <motion.div className="absolute z-10 w-8 h-8 opacity-0" style={{ top: '60%', left: '70%', cursor: 'pointer' }} whileInView={{ opacity: 1, transition: { delay: 1.5, duration: 0.5 } }} animate={{ y: [0, -5, 0], x: [0, 5, 0], scale: [1, 0.9, 1] }} transition={{ repeat: Infinity, duration: 2, repeatDelay: 1 }} viewport={{ once: true, amount: 0.8 }}>
-              {/* This is a simplified click simulation. A custom cursor image would be better. */}
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="white"><path d="M7.5 1.5L4.5 9.5H11.5L8.5 1.5H7.5Z" transform="rotate(20 8 8)"/><path d="M12.5 8.5L10.5 18.5L16.5 15.5L19.5 12.5L12.5 8.5Z"/></svg>
             </motion.div>
           </motion.div>
@@ -316,19 +318,12 @@ const LandingPage = () => {
         transition={{ duration: 0.7 }}
       >
         <div className="flex flex-col items-center justify-center space-y-6">
-          <Image src="/Images/logo.png" alt="S.A.R.A. Logo" width={80} height={32} className="opacity-70" />
+          <Image src="/Images/logo2.png" alt="S.A.R.A. Logo" width={80} height={32} className="opacity-70" />
           <div className="flex space-x-6">
-            <a href="#" className="text-sara-white hover:text-sara-accent transition-colors">
-              <Facebook size={24} />
-            </a>
-            <a href="#" className="text-sara-white hover:text-sara-accent transition-colors">
-              <Twitter size={24} />
-            </a>
-            <a href="#" className="text-sara-white hover:text-sara-accent transition-colors">
-              <Linkedin size={24} />
-            </a>
+            <a href="#" className="text-sara-white hover:text-sara-accent transition-colors"><Facebook size={24} /></a>
+            <a href="#" className="text-sara-white hover:text-sara-accent transition-colors"><Twitter size={24} /></a>
+            <a href="#" className="text-sara-white hover:text-sara-accent transition-colors"><Linkedin size={24} /></a>
           </div>
-          {/* Botón de imagen CTA en el Footer */}
           <ImageButton src="/Images/CTA.png" alt="Prueba gratis" width={180} height={55} />
           <p className="text-sm text-sara-gray-400 mt-4">&copy; {new Date().getFullYear()} S.A.R.A. Todos los derechos reservados.</p>
         </div>
