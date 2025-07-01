@@ -4,7 +4,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Home, FileText, LayoutDashboard, LogOut, Building2, Users, CreditCard, ShieldAlert, ClipboardCheck } from "lucide-react";
+import { LogOut, Building2, FileText, CreditCard, ShieldAlert, ClipboardCheck, LayoutDashboard } from "lucide-react";
 import {
   SidebarProvider,
   Sidebar,
@@ -14,14 +14,9 @@ import {
   SidebarMenu,
   SidebarMenuItem,
   SidebarMenuButton,
-  SidebarMenuSub,
-  SidebarMenuSubItem,
-  SidebarMenuSubButton,
-  SidebarInset,
 } from "@/components/ui/sidebar";
-import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
-import { Header } from "./Header"; 
+import { Header } from "./Header";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -39,21 +34,28 @@ export function AppLayout({ children }: AppLayoutProps) {
   }, [currentUser, loading, router]);
 
   React.useEffect(() => {
-    if (currentUser) {
-      fetchPendingCounts(); // Fetch counts when user is available or path changes that might alter counts
+    if (currentUser && !currentUser.isAdmin) {
+      fetchPendingCounts();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser, pathname]); // Re-fetch on pathname change as actions on pages can change counts
-
+  }, [currentUser, pathname]);
 
   if (loading) {
     return <div className="flex h-screen items-center justify-center"><p>Cargando S.A.R.A...</p></div>;
   }
 
   if (!currentUser) {
-    return null; 
+    return null;
   }
-  
+
+  // --- Lógica de Administrador ---
+  // Si el usuario es un administrador, no mostramos el layout de la app principal.
+  // El AdminLayout tomará el control total en las rutas /admin/*.
+  if (currentUser.isAdmin) {
+    return <>{children}</>;
+  }
+
+  // --- Lógica para Arrendador e Inquilino ---
   const isArrendador = currentUser.role === "Arrendador";
 
   const navItems = [
@@ -103,14 +105,12 @@ export function AppLayout({ children }: AppLayoutProps) {
           </SidebarMenu>
         </SidebarFooter>
       </Sidebar>
-      <SidebarInset className="flex flex-col">
+      <div className="flex flex-col flex-1">
         <Header />
         <main className="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8">
           {children}
         </main>
-      </SidebarInset>
+      </div>
     </SidebarProvider>
   );
 }
-
-    

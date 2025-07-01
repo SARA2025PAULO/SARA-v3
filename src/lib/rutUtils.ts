@@ -1,69 +1,71 @@
+// src/lib/rutUtils.ts
 
+/**
+ * Formats a RUT string (Chilean national ID) into a standardized format.
+ * Example: "123456789" -> "12.345.678-9"
+ * @param rut The raw RUT string.
+ * @returns The formatted RUT string.
+ */
 export const formatRut = (rut: string): string => {
-  if (!rut || typeof rut !== 'string') {
-    return '';
-  }
+  let cleanRut = rut.replace(/[^0-9kK]/g, "").toUpperCase();
+  if (!cleanRut) return "";
 
-  // Limpiar el RUT de puntos y guion
-  let cleanRut = rut.replace(/[.-]/g, '');
-
-  if (cleanRut.length < 2) {
-    return cleanRut;
-  }
-
-  // Separar el cuerpo del dígito verificador
   let body = cleanRut.slice(0, -1);
-  const dv = cleanRut.slice(-1).toUpperCase();
+  let verifier = cleanRut.slice(-1);
 
-  // Formatear el cuerpo con puntos
-  body = new Intl.NumberFormat('es-CL').format(Number(body));
-
-  return `${body}-${dv}`;
+  if (body.length > 0) {
+    body = body.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+    return `${body}-${verifier}`;
+  } else {
+    // Allows typing the first digit of the verifier without a leading hyphen
+    return verifier;
+  }
 };
 
-export const cleanRut = (rut: string): string => {
-    if (!rut || typeof rut !== 'string') {
-        return '';
-    }
-    return rut.replace(/[.-]/g, '');
-}
+/**
+ * Removes formatting from a RUT string.
+ * Example: "12.345.678-9" -> "123456789"
+ * @param formattedRut The formatted RUT string.
+ * @returns The clean, unformatted RUT string.
+ */
+export const cleanRut = (formattedRut: string): string => {
+  return formattedRut.replace(/[\.\-]/g, "");
+};
 
+/**
+ * Validates a Chilean RUT. Now correctly handles formatted RUTs.
+ * @param rut The RUT string (can be formatted or not).
+ * @returns True if the RUT is valid, false otherwise.
+ */
 export const validateRut = (rut: string): boolean => {
-    if (!rut || typeof rut !== 'string') {
-        return false;
-    }
+  if (!rut) return false;
+  
+  const clean = rut.replace(/[\.\-]/g, "").toUpperCase();
+  const body = clean.slice(0, -1);
+  const verifier = clean.slice(-1);
 
-    const cleanedRut = cleanRut(rut);
-    if (cleanedRut.length < 2) {
-        return false;
-    }
+  if (!/^[0-9]+[0-9K]$/.test(clean) || body.length < 7) {
+      return false;
+  }
 
-    let rutBody = cleanedRut.slice(0, -1);
-    const dv = cleanedRut.slice(-1).toUpperCase();
+  let sum = 0;
+  let multiplier = 2;
 
-    // Validar formato del cuerpo
-    if (!/^[0-9]+$/.test(rutBody)) {
-        return false;
-    }
+  for (let i = body.length - 1; i >= 0; i--) {
+    sum += parseInt(body.charAt(i), 10) * multiplier;
+    multiplier = multiplier === 7 ? 2 : multiplier + 1;
+  }
 
-    let sum = 0;
-    let multiplier = 2;
+  const calculatedVerifier = 11 - (sum % 11);
+  let expectedVerifier: string;
 
-    for (let i = rutBody.length - 1; i >= 0; i--) {
-        sum += parseInt(rutBody.charAt(i), 10) * multiplier;
-        multiplier = multiplier === 7 ? 2 : multiplier + 1;
-    }
+  if (calculatedVerifier === 11) {
+    expectedVerifier = "0";
+  } else if (calculatedVerifier === 10) {
+    expectedVerifier = "K";
+  } else {
+    expectedVerifier = calculatedVerifier.toString();
+  }
 
-    const calculatedDv = 11 - (sum % 11);
-    let expectedDv: string;
-
-    if (calculatedDv === 11) {
-        expectedDv = '0';
-    } else if (calculatedDv === 10) {
-        expectedDv = 'K';
-    } else {
-        expectedDv = calculatedDv.toString();
-    }
-
-    return dv === expectedDv;
+  return verifier === expectedVerifier;
 };

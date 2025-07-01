@@ -18,6 +18,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  allowedDevOrigins: ["https://3002-firebase-sara20git-1749771769228.cluster-ve345ymguzcd6qqzuko2qbxtfe.cloudworkstations.dev"],
 };
 
 export default nextConfig;

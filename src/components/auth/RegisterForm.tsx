@@ -3,9 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { createUserWithEmailAndPassword } from "firebase/auth";
 import { auth, db } from "@/lib/firebase"; // db is needed here
-import { doc, setDoc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -31,6 +29,8 @@ import { useAuth } from "@/contexts/AuthContext";
 import { UserPlus } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import Link from "next/link";
+import { getFunctions, httpsCallable } from "firebase/functions";
+
 
 const formSchema = z.object({
   displayName: z.string().min(2, { message: "El nombre debe tener al menos 2 caracteres."}),
@@ -38,6 +38,7 @@ const formSchema = z.object({
   password: z.string().min(6, { message: "La contraseña debe tener al menos 6 caracteres." }),
   confirmPassword: z.string().min(6, { message: "La contraseña debe tener al menos 6 caracteres." }),
   role: z.enum(["Arrendador", "Inquilino"], { required_error: "Debes seleccionar un rol." }),
+  invitationCode: z.string().min(1, { message: "El código de invitación es requerido." }),
   acceptTerms: z.boolean().refine(val => val === true, {
     message: "Debes aceptar los términos y condiciones para continuar.",
   }),
@@ -58,37 +59,39 @@ export function RegisterForm() {
       email: "",
       password: "",
       confirmPassword: "",
-      role: undefined, // Arrendador or Inquilino
+      role: undefined,
+      invitationCode: "",
       acceptTerms: false,
     },
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    if (!db) {
-      toast({ title: "Error de Configuración", description: "La base de datos no está disponible. Contacte al administrador.", variant: "destructive" });
-      return;
-    }
-    try {
-      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
-      const user = userCredential.user;
+    const functions = getFunctions();
+    const registerWithInvitation = httpsCallable(functions, 'registerWithInvitation');
 
-      // Store user role and display name in Firestore
-      await updateUserProfileInFirestore(user.uid, user.email, values.role as UserRole, values.displayName);
-      
-      toast({
-        title: "Registro Exitoso",
-        description: "Tu cuenta ha sido creada. Ahora puedes iniciar sesión.",
+    try {
+      const result = await registerWithInvitation({
+        email: values.email,
+        password: values.password,
+        displayName: values.displayName,
+        role: values.role,
+        code: values.invitationCode,
       });
-      router.push("/login?registered=true");
+
+      if ((result.data as any).success) {
+        toast({
+          title: "Registro Exitoso",
+          description: "Tu cuenta ha sido creada. Ahora puedes iniciar sesión.",
+        });
+        router.push("/login?registered=true");
+      } else {
+        throw new Error((result.data as any).message || 'Ocurrió un error desconocido.');
+      }
     } catch (error: any) {
       console.error("Error during registration:", error);
-      let errorMessage = "Ocurrió un error durante el registro.";
-      if (error.code === "auth/email-already-in-use") {
-        errorMessage = "Este correo electrónico ya está en uso.";
-      }
       toast({
         title: "Error de Registro",
-        description: errorMessage,
+        description: error.message || "Ocurrió un error durante el registro.",
         variant: "destructive",
       });
     }
@@ -172,6 +175,19 @@ export function RegisterForm() {
               <FormMessage />
             </FormItem>
           )}
+        />
+        <FormField
+            control={form.control}
+            name="invitationCode"
+            render={({ field }) => (
+                <FormItem>
+                <FormLabel>Código de Invitación</FormLabel>
+                <FormControl>
+                    <Input placeholder="SARA-XXXXXXXX" {...field} />
+                </FormControl>
+                <FormMessage />
+                </FormItem>
+            )}
         />
         <FormField
           control={form.control}

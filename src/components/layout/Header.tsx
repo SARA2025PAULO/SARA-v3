@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { LogOut, UserCircle, Settings, LayoutDashboard } from "lucide-react";
+import { LogOut, UserCircle, Settings, LayoutDashboard, Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -78,9 +78,17 @@ export function Header() {
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          <Button asChild variant="outline">
-            <Link href="/login">Iniciar Sesión</Link>
-          </Button>
+            <div className="flex items-center gap-4">
+                <Button asChild variant="outline">
+                    <Link href="/login">Iniciar Sesión</Link>
+                </Button>
+                <Button asChild>
+                    <Link href="/solicitar-demo" className="flex items-center">
+                        <Rocket className="mr-2 h-4 w-4" />
+                        Probar Gratis
+                    </Link>
+                </Button>
+          </div>
         )}
       </div>
     </header>

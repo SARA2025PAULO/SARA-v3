@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -36,6 +36,7 @@ import { Paperclip, CreditCard } from "lucide-react";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useToast } from "@/hooks/use-toast";
 import type { Contract } from "@/types"; 
+import { useAuth } from "@/contexts/AuthContext"; // Import useAuth
 
 const paymentTypes = ["arriendo", "gastos comunes", "otro"] as const;
 
@@ -68,6 +69,7 @@ export function PaymentFormDialog({
   tenantContracts,
 }: PaymentFormDialogProps) {
   const { toast } = useToast();
+  const { currentUser } = useAuth(); // Use the auth context
   const [selectedFileName, setSelectedFileName] = useState<string | null>(null); 
 
   const form = useForm<PaymentFormValues>({
@@ -82,26 +84,46 @@ export function PaymentFormDialog({
     },
   });
 
+  // Log current user's UID and role when the dialog opens
+  useEffect(() => {
+    if (open && currentUser) {
+      console.log("PaymentFormDialog: Current User UID:", currentUser.uid);
+      console.log("PaymentFormDialog: Current User Role:", currentUser.role);
+    } else if (open && !currentUser) {
+      console.log("PaymentFormDialog: No user authenticated.");
+    }
+  }, [open, currentUser]);
+
   async function onSubmit(values: PaymentFormValues) {
     let attachmentUrl: string | null = null;
 
     if (values.attachment && values.attachment.length > 0) {
       const file = values.attachment[0];
-      const fileName = file.name;
+      const originalFileName = file.name;
+      const fileExtension = originalFileName.split('.').pop();
+      const simpleFileName = `${Date.now()}.${fileExtension || 'dat'}`;
+
+      // Log contractId before attempting upload
+      console.log("PaymentFormDialog: Attempting upload for contractId:", values.contractId);
+      console.log("Original File Name:", originalFileName);
+      console.log("Generated Simple File Name:", simpleFileName);
+      console.log("File Type:", file.type);
+      console.log("File Size:", file.size, "bytes");
+
       const storage = getStorage();
       const storageRef = ref(
         storage,
-        `payment_receipts/${values.contractId}/${Date.now()}_${fileName}`
+        `payment_receipts/${values.contractId}/${simpleFileName}` // Usar el nombre de archivo simple
       );
       try {
         const metadata = {
-          contentDisposition: `attachment; filename="${fileName}"`,
+          contentType: file.type, // Asegura el tipo de contenido del archivo
         };
         const snapshot = await uploadBytes(storageRef, file, metadata);
         attachmentUrl = await getDownloadURL(snapshot.ref);
         toast({ title: "Archivo Adjunto", description: "Comprobante subido exitosamente." });
       } catch (error) {
-        console.error("Error al subir el archivo de comprobante:", error);
+        console.error("DETAILED Error al subir el archivo de comprobante:", error);
         toast({
           title: "Error al adjuntar comprobante",
           description: "No se pudo subir el archivo. Inténtalo de nuevo.",
@@ -126,6 +148,23 @@ export function PaymentFormDialog({
     });
     setSelectedFileName(null); 
   }
+
+  const formatCurrencyInput = (value: number | string | null | undefined): string => {
+    if (value === null || value === undefined || value === '') {
+      return '';
+    }
+    const num = typeof value === 'string' ? parseFloat(value.replace(/\./g, '')) : value;
+    if (isNaN(num)) {
+      return '';
+    }
+    return new Intl.NumberFormat('es-CL', { style: 'decimal', minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(num);
+  };
+  
+  const parseCurrencyInput = (value: string): number => {
+    const cleanValue = value.replace(/\./g, ''); 
+    const num = parseFloat(cleanValue);
+    return isNaN(num) ? 0 : num;
+  };
 
   return (
     <Dialog
@@ -219,10 +258,13 @@ export function PaymentFormDialog({
                   <FormLabel>Monto</FormLabel>
                   <FormControl>
                     <Input
-                      type="number"
-                      placeholder="Ej: 500000"
-                      {...field}
-                      onChange={e => field.onChange(parseFloat(e.target.value))}
+                      type="text" 
+                      placeholder="Ej: 500.000"
+                      value={formatCurrencyInput(field.value)}
+                      onChange={e => {
+                        field.onChange(parseCurrencyInput(e.target.value));
+                      }}
+                      onBlur={field.onBlur}
                     />
                   </FormControl>
                   <FormMessage />

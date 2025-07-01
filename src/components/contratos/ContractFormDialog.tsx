@@ -14,7 +14,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { CalendarIcon, Loader2, UploadCloud, X, FileText } from "lucide-react";
+import { CalendarIcon, Loader2 } from "lucide-react"; // Removed UploadCloud, X, FileText
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import type { Contract, Property } from "@/types";
@@ -64,10 +64,11 @@ const formSchema = z.object({
   tenantCivilStatus: z.string().optional(),
   tenantProfession: z.string().optional(),
   
+  propertyUsage: z.enum(["Habitacional", "Comercial"], { required_error: "Debe seleccionar el uso de la propiedad." }),
   prohibitionToSublet: z.boolean().optional(),
   specialClauses: z.string().optional(),
   
-  existingContract: z.any().optional(), 
+  // existingContract: z.any().optional(), // Removed
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -75,7 +76,7 @@ type FormValues = z.infer<typeof formSchema>;
 interface ContractFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onSave: (values: FormValues, file: File | null) => void;
+  onSave: (values: FormValues) => void; // Removed file parameter
   contract?: Contract | null;
   userProperties: Property[];
   isSubmitting: boolean;
@@ -83,8 +84,8 @@ interface ContractFormDialogProps {
 
 export function ContractFormDialog({ open, onOpenChange, onSave, contract, userProperties, isSubmitting }: ContractFormDialogProps) {
     const { toast } = useToast();
-    const [selectedExistingContractFile, setSelectedExistingContractFile] = useState<File | null>(null);
-    const [selectedExistingContractFileName, setSelectedExistingContractFileName] = useState<string | null>(null);
+    // const [selectedExistingContractFile, setSelectedExistingContractFile] = useState<File | null>(null); // Removed
+    // const [selectedExistingContractFileName, setSelectedExistingContractFileName] = useState<string | null>(null); // Removed
     const [isStartDatePickerOpen, setIsStartDatePickerOpen] = useState(false);
     const [isEndDatePickerOpen, setIsEndDatePickerOpen] = useState(false);
 
@@ -94,6 +95,7 @@ export function ContractFormDialog({ open, onOpenChange, onSave, contract, userP
             ipcAdjustment: false,
             prohibitionToSublet: true,
             commonExpensesIncluded: "no aplica",
+            propertyUsage: "Habitacional", // Default value
         },
     });
 
@@ -108,41 +110,43 @@ export function ContractFormDialog({ open, onOpenChange, onSave, contract, userP
             endDate: new Date(contract.endDate),
             securityDepositAmount: contract.securityDepositAmount ?? undefined,
             propertyCBRAno: contract.propertyCBRAno ?? undefined,
+            propertyUsage: contract.propertyUsage || "Habitacional",
           } : {
             propertyId: "", tenantEmail: "", tenantName: "", tenantRut: "",
             commonExpensesIncluded: "no aplica",
             ipcAdjustment: false,
             prohibitionToSublet: true,
+            propertyUsage: "Habitacional",
           };
           
           form.reset(defaultValues as any);
           
-          setSelectedExistingContractFileName(contract?.existingContractFileName || null);
-          form.setValue('existingContract', undefined);
+          // setSelectedExistingContractFileName(contract?.existingContractFileName || null); // Removed
+          // form.setValue('existingContract', undefined); // Removed
         }
     }, [contract, open, form]);
 
-    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const file = event.target.files?.[0];
-        if (file) {
-            if (file.type !== "application/pdf") {
-                toast({ title: "Archivo Inválido", description: "Solo se admiten archivos PDF.", variant: "destructive" });
-                return;
-            }
-            setSelectedExistingContractFile(file);
-            setSelectedExistingContractFileName(file.name);
-            form.setValue('existingContract', file);
-        }
-    };
+    // const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => { // Removed
+    //     const file = event.target.files?.[0];
+    //     if (file) {
+    //         if (file.type !== "application/pdf") {
+    //             toast({ title: "Archivo Inválido", description: "Solo se admiten archivos PDF.", variant: "destructive" });
+    //             return;
+    //         }
+    //         setSelectedExistingContractFile(file);
+    //         setSelectedExistingContractFileName(file.name);
+    //         form.setValue('existingContract', file);
+    //     }
+    // };
     
-    const removeFile = () => {
-        setSelectedExistingContractFile(null);
-        setSelectedExistingContractFileName(null);
-        form.setValue('existingContract', undefined);
-    }
+    // const removeFile = () => { // Removed
+    //     setSelectedExistingContractFile(null);
+    //     setSelectedExistingContractFileName(null);
+    //     form.setValue('existingContract', undefined);
+    // } // Removed
 
     const onSubmit = (values: FormValues) => {
-        onSave(values, selectedExistingContractFile);
+        onSave(values); // Removed file parameter
     };
     
     return (
@@ -320,12 +324,34 @@ export function ContractFormDialog({ open, onOpenChange, onSave, contract, userP
                         <section>
                             <h3 className="text-lg font-semibold border-b pb-2 mb-4">Cláusulas y Condiciones Adicionales</h3>
                             <div className="space-y-4">
+                                <FormField
+                                    control={form.control}
+                                    name="propertyUsage"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Uso de la Propiedad*</FormLabel>
+                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger>
+                                                        <SelectValue placeholder="Selecciona el destino del inmueble" />
+                                                    </SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="Habitacional">Habitacional</SelectItem>
+                                                    <SelectItem value="Comercial">Comercial</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormDescription>Define el propósito principal del arriendo.</FormDescription>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
                                 <FormField control={form.control} name="prohibitionToSublet" render={({ field }) => (<FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm"><div className="space-y-0.5"><FormLabel>Prohibición de Subarrendar</FormLabel></div><FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl></FormItem>)} />
                                 <FormField control={form.control} name="specialClauses" render={({ field }) => (<FormItem><FormLabel>Cláusulas Especiales (Opcional)</FormLabel><FormControl><Textarea placeholder="Ej: Se permite la tenencia de una mascota pequeña..." {...field} /></FormControl><FormMessage /></FormItem>)} />
                             </div>
                         </section>
 
-                        <section>
+                        {/* <section>
                             <h3 className="text-lg font-semibold border-b pb-2 mb-4">Contrato Existente (Opcional)</h3>
                             <FormField control={form.control} name="existingContract" render={({ field }) => (
                                 <FormItem>
@@ -339,9 +365,9 @@ export function ContractFormDialog({ open, onOpenChange, onSave, contract, userP
                                         </div>
                                     </FormControl>
                                     <FormMessage />
-                                </FormItem>
+                                 </FormItem>
                             )}/>
-                        </section>
+                        </section> */}
                         
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>

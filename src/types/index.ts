@@ -12,11 +12,12 @@ export interface UserProfile {
 
 export interface Property {
   id: string;
-  code?: string; // Add this line for the automatic code
+  code?: string;
   address: string;
   status: "Disponible" | "Arrendada" | "Mantenimiento";
   description: string;
   ownerId: string;
+  ownerRut?: string; // RUT del propietario
   imageUrl?: string;
   price?: number;
   bedrooms?: number;
@@ -37,24 +38,26 @@ export interface Contract {
   landlordId: string;
   landlordName: string;
   landlordEmail: string;
-  tenantId?: string; // Could be undefined if tenant hasn't registered yet
+  landlordRut?: string; // RUT del arrendador (propietario)
+  tenantId?: string; 
   tenantEmail: string;
   tenantName: string;
   tenantRut: string;
-  startDate: string; // ISO 8601 string
-  endDate: string; // ISO 8601 string
+  startDate: string; 
+  endDate: string; 
   rentAmount: number;
   status: "pendiente" | "activo" | "finalizado" | "rechazado" | "aprobado";
   commonExpensesIncluded: "si" | "no" | "no aplica";
   
-  // Updated payment days
-  rentPaymentDay?: number; // Día de pago del arriendo
-  commonExpensesPaymentDay?: number; // Día de pago de gastos comunes (si no están incluidos)
-  utilitiesPaymentDay?: number; // Día de pago de cuentas de servicios
+  rentPaymentDay?: number;
+  commonExpensesPaymentDay?: number; 
+  utilitiesPaymentDay?: number; 
 
   securityDepositAmount?: number;
-  paymentDay?: number; // Legacy field, can be removed later
+  paymentDay?: number;
   terms?: string;
+
+  propertyUsage?: "Habitacional" | "Comercial"; // Uso de la propiedad
 
   propertyAddress?: string;
   propertyRolAvaluo?: string;
@@ -77,7 +80,14 @@ export interface Contract {
   existingContractFileName?: string;
   
   observations?: ContractObservation[];
+  
+  // Fields for legal document generation
+  propertyType?: string;
+  propertyCommunity?: string;
+  propertyCity?: string;
+  contractDurationMonths?: number;
 }
+
 
 export interface Payment {
   id: string;

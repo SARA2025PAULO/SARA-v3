@@ -5,6 +5,7 @@ import React from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
+import { Button } from '@/components/ui/button';
 import {
   Save,
   Bell,
@@ -18,21 +19,8 @@ import {
   Linkedin,
   ShieldCheck,
   AlertTriangle,
+  Rocket
 } from 'lucide-react';
-
-// El href apunta a /solicitar-demo
-const ImageButton = ({ src, alt, className, width, height }: { src: string; alt: string; className?: string; width: number; height: number; }) => (
-  <Link href="/solicitar-demo" passHref>
-    <motion.div
-      className={`relative cursor-pointer inline-block ${className}`}
-      whileHover={{ scale: 1.05, filter: 'brightness(1.1)' }}
-      whileTap={{ scale: 0.95 }}
-      transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-    >
-      <Image src={src} alt={alt} width={width} height={height} style={{ width: 'auto', height: 'auto' }} />
-    </motion.div>
-  </Link>
-);
 
 const LandingPage = () => {
   return (
@@ -42,33 +30,21 @@ const LandingPage = () => {
         initial={{ y: -100, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ duration: 0.5, delay: 0.2 }}
-        className="fixed top-0 left-0 right-0 z-50 bg-sara-white shadow-md h-14 flex justify-between items-center px-4 md:px-8"
+        className="fixed top-0 left-0 right-0 z-50 bg-sara-white shadow-md h-16 flex justify-between items-center px-4 md:px-8"
       >
         <div className="flex items-center space-x-2">
-          {/* Adjusted logo to fit within the new fixed-height header */}
-          <Image src="/Images/logo2.png" alt="S.A.R.A. Logo" width={80} height={32} priority style={{ width: 'auto', height: 'auto' }} />
+          <Image src="/Images/logo2.png" alt="S.A.R.A. Logo" width={90} height={36} priority style={{ width: 'auto', height: 'auto' }} />
         </div>
-        <nav className="hidden md:flex items-center space-x-8">
-          <a href="#hero" className="flex flex-col items-center text-sara-text hover:text-sara-primary transition-colors">
-            <Image src="/Images/icon-contratos.png" alt="Contratos Icon" width={24} height={24} style={{ width: 'auto', height: 'auto' }} />
-            <span className="text-xs mt-1">Contratos</span>
-          </a>
-          <a href="#como-funciona" className="flex flex-col items-center text-sara-text hover:text-sara-primary transition-colors">
-            <Image src="/Images/icon.propiedades.png" alt="Propiedades Icon" width={24} height={24} style={{ width: 'auto', height: 'auto' }} />
-            <span className="text-xs mt-1">Propiedades</span>
-          </a>
-          <a href="#como-funciona" className="flex flex-col items-center text-sara-text hover:text-sara-primary transition-colors">
-            <Image src="/Images/icon.calendario.png" alt="Calendario Icon" width={24} height={24} style={{ width: 'auto', height: 'auto' }} />
-            <span className="text-xs mt-1">Calendario</span>
-          </a>
-          <a href="#como-funciona" className="flex flex-col items-center text-sara-text hover:text-sara-primary transition-colors">
-            <Image src="/Images/icon.informe.png" alt="Informe Icon" width={24} height={24} style={{ width: 'auto', height: 'auto' }} />
-            <span className="text-xs mt-1">Informe</span>
-          </a>
-        </nav>
-        <div className="hidden md:block">
-          {/* Adjusted button to fit within the new fixed-height header */}
-          <ImageButton src="/Images/CTA.png" alt="Prueba gratis" width={120} height={32} />
+        <div className="flex items-center gap-4">
+            <Button asChild variant="outline">
+                <Link href="/login">Iniciar Sesión</Link>
+            </Button>
+            <Button asChild>
+                <Link href="/solicitar-demo" className="flex items-center">
+                    <Rocket className="mr-2 h-4 w-4" />
+                    Probar Gratis
+                </Link>
+            </Button>
         </div>
       </motion.header>
 
@@ -96,7 +72,12 @@ const LandingPage = () => {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ duration: 0.6, delay: 0.8 }}
           >
-            <ImageButton src="/Images/CTA.png" alt="Prueba gratis" width={200} height={60} />
+            <Button asChild size="lg">
+                <Link href="/solicitar-demo" className="flex items-center">
+                    <Rocket className="mr-2 h-5 w-5" />
+                    Probar Gratis
+                </Link>
+            </Button>
           </motion.div>
         </div>
         <div className="relative md:w-1/2 p-4 flex justify-center items-center mt-12 md:mt-0">
@@ -324,8 +305,18 @@ const LandingPage = () => {
             <a href="#" className="text-sara-white hover:text-sara-accent transition-colors"><Twitter size={24} /></a>
             <a href="#" className="text-sara-white hover:text-sara-accent transition-colors"><Linkedin size={24} /></a>
           </div>
-          <ImageButton src="/Images/CTA.png" alt="Prueba gratis" width={180} height={55} />
+           <Button asChild>
+                <Link href="/solicitar-demo" className="flex items-center">
+                    <Rocket className="mr-2 h-4 w-4" />
+                    Probar Gratis
+                </Link>
+            </Button>
           <p className="text-sm text-sara-gray-400 mt-4">&copy; {new Date().getFullYear()} S.A.R.A. Todos los derechos reservados.</p>
+          <div className="mt-2">
+            <Link href="/create-first-admin" className="text-xs text-sara-gray-500 hover:text-sara-white">
+              Acceso Admin
+            </Link>
+          </div>
         </div>
       </motion.footer>
     </div>

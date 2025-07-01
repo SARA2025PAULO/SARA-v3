@@ -1,11 +1,13 @@
+
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod"; 
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { signInWithEmailAndPassword } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
 import { sendPasswordResetEmail } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -38,12 +40,29 @@ export function LoginForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      await signInWithEmailAndPassword(auth, values.email, values.password);
+      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      const user = userCredential.user;
+
+      // Consultar el rol del usuario desde Firestore
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDocSnap = await getDoc(userDocRef);
+
+      let isAdmin = false;
+      if (userDocSnap.exists()) {
+        isAdmin = userDocSnap.data().role === 'admin';
+      }
+
       toast({
         title: "Inicio de Sesión Exitoso",
-        description: "Bienvenido de nuevo a S.A.R.A.",
+        description: `Bienvenido de nuevo, ${userDocSnap.data()?.displayName || values.email}.`,
       });
-      router.push("/dashboard");
+
+      if (isAdmin) {
+        router.push("/admin");
+      } else {
+        router.push("/dashboard");
+      }
+
     } catch (error: any) {
       console.error("Error during login:", error);
       let errorMessage = "Ocurrió un error al iniciar sesión.";
@@ -83,7 +102,6 @@ export function LoginForm() {
       });
     }
   }
-
 
   return (
     <Form {...form}>

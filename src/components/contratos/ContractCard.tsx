@@ -4,9 +4,9 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { Contract, UserRole, InitialPropertyStateStatus } from "@/types";
-import { Eye, CheckCircle2, XCircle, Edit3, FileText, CalendarDays, User, Building, ShieldCheck, Receipt, Archive, Trash2, MessageSquarePlus, MessageSquareWarning } from "lucide-react"; // NEW: Added MessageSquareWarning icon
-import { ContractDetailDialog } from "./ContractDetailDialog";
-import { useState } from "react";
+import { Eye, CheckCircle2, XCircle, Edit3, FileText, CalendarDays, User, Building, ShieldCheck, Receipt, Archive, Trash2, MessageSquarePlus, MessageSquareWarning } from "lucide-react";
+// Removed: import { ContractDetailDialog } from "./ContractDetailDialog";
+// Removed: import { useState } from "react";
 
 interface ContractCardProps {
   contract: Contract;
@@ -18,6 +18,7 @@ interface ContractCardProps {
   onReviewInitialState?: (contract: Contract) => void;
   onDelete?: (contract: Contract) => void;
   onMakeObservation?: (contract: Contract) => void;
+  onViewDetails: (contract: Contract) => void; // Added onViewDetails prop
 }
 
 export function ContractCard({
@@ -30,8 +31,9 @@ export function ContractCard({
   onReviewInitialState,
   onDelete,
   onMakeObservation,
+  onViewDetails, // Destructure the new prop
 }: ContractCardProps) {
-  const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
+  // Removed: const [isDetailDialogOpen, setIsDetailDialogOpen] = useState(false);
 
   const getStatusVariant = (status: Contract["status"]) => {
     switch (status?.toLowerCase()) {
@@ -94,19 +96,18 @@ export function ContractCard({
     contractStatusLower === "pendiente" &&
     onMakeObservation;
 
-  // NEW: Condition for showing landlord alert for observations
   const hasObservationsForLandlord = 
     userRole?.toLowerCase() === "arrendador" &&
-    contractStatusLower === "pendiente" && // Only alert if contract is pending approval
-    (contract.observations && contract.observations.length > 0); // Check if there are any observations
+    contractStatusLower === "pendiente" &&
+    (contract.observations && contract.observations.length > 0);
     
   return (
     <Card className="shadow-md hover:shadow-lg transition-shadow duration-300 flex flex-col">
       <CardHeader className="pb-3">
         <div className="flex justify-between items-start">
           <CardTitle className="text-lg font-semibold font-headline">{contract.propertyName || `ID ${contract.propertyId.substring(0,8)}...`}</CardTitle>
-          <div className="flex items-center gap-2"> {/* NEW: Container for badges */}
-            {hasObservationsForLandlord && ( // NEW: Observation alert badge
+          <div className="flex items-center gap-2">
+            {hasObservationsForLandlord && (
               <Badge variant="destructive" className="text-xs px-2 py-1 flex items-center gap-1">
                 <MessageSquareWarning className="h-3 w-3" /> Observaciones
               </Badge>
@@ -154,7 +155,7 @@ export function ContractCard({
         )}
       </CardContent>
       <CardFooter className="flex flex-wrap justify-end gap-2 bg-muted/30 p-4 mt-auto">
-        <Button variant="outline" size="sm" onClick={() => setIsDetailDialogOpen(true)}>
+        <Button variant="outline" size="sm" onClick={() => onViewDetails(contract)}> {/* Use onViewDetails prop */}
           <Eye className="h-4 w-4 mr-1" /> Detalles
         </Button>
         {userRole?.toLowerCase() === "inquilino" && contractStatusLower === "pendiente" && onApprove && onReject && (
@@ -189,11 +190,7 @@ export function ContractCard({
         )}
       </CardFooter>
 
-      <ContractDetailDialog
-        open={isDetailDialogOpen}
-        onOpenChange={setIsDetailDialogOpen}
-        contract={contract}
-      />
+      {/* Removed local ContractDetailDialog */}
     </Card>
   );
 }
