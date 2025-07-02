@@ -79,8 +79,8 @@ export function Header() {
           </DropdownMenu>
         ) : (
             <div className="flex items-center gap-4">
-                <Button asChild variant="outline">
-                    <Link href="/login">Iniciar Sesión</Link>
+               {/* <Button asChild variant="outline">
+                    <Link href="/login">Iniciar Sesión</Link>*/}
                 </Button>
                 <Button asChild>
                     <Link href="/solicitar-demo" className="flex items-center">
