@@ -5,10 +5,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import { signInWithEmailAndPassword } from "firebase/auth";
-import { doc, getDoc } from "firebase/firestore";
-import { sendPasswordResetEmail } from "firebase/auth";
-import { auth, db } from "@/lib/firebase";
+import { doc, getDoc, getFirestore } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
+import { getAuth, sendPasswordResetEmail } from "firebase/auth";
 import {
   Form,
   FormControl,
@@ -19,8 +18,9 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast"; 
-import { useRouter } from "next/navigation";
+import { useRouter } from "next/navigation"; // Import useRouter
 import { LogIn } from "lucide-react";
+import { db } from '@/lib/firebase';
 
 const formSchema = z.object({
   email: z.string().email({ message: "Por favor ingresa un correo válido." }),
@@ -40,7 +40,8 @@ export function LoginForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     try {
-      const userCredential = await signInWithEmailAndPassword(auth, values.email, values.password);
+      const authInstance = getAuth();
+      const userCredential = await signInWithEmailAndPassword(authInstance, values.email, values.password);
       const user = userCredential.user;
 
       // Consultar el rol del usuario desde Firestore
@@ -76,7 +77,7 @@ export function LoginForm() {
       });
     }
   }
-
+ // Function to handle password reset
  async function handlePasswordReset() {
     const email = form.getValues("email");
     if (!email) {
@@ -88,7 +89,8 @@ export function LoginForm() {
       return;
     }
     try {
-      await sendPasswordResetEmail(auth, email);
+      const authInstance = getAuth();
+      await sendPasswordResetEmail(authInstance, email);
       toast({
         title: "Correo de Recuperación Enviado",
         description: "Hemos enviado un correo a tu dirección con instrucciones para restablecer tu contraseña.",

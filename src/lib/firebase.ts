@@ -1,39 +1,23 @@
+// Importa las funciones necesarias desde los SDK de Firebase
+import { initializeApp, getApps } from "firebase/app";
+import { getFirestore } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
+import { getStorage } from "firebase/storage";
 
-import { initializeApp, getApp, getApps, FirebaseApp } from "firebase/app";
-import { getAuth, Auth } from "firebase/auth";
-import { getFirestore, Firestore } from "firebase/firestore";
-import { getStorage, FirebaseStorage } from "firebase/storage";
-
-// Firebase configuration using environment variables
+// Tu configuración específica de Firebase
 const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  apiKey: "AIzaSyDffNaaeQSU-toOqbgZw8M6Rvye6SDBiR0",
+  authDomain: "sarav3-ff879.firebaseapp.com",
+  projectId: "sarav3-ff879",
+  storageBucket: "sarav3-ff879.firebasestorage.app",
+  messagingSenderId: "525365848502",
+  appId: "1:525365848502:web:3d60024abf3728765cf917"
 };
 
-let app: FirebaseApp;
-let auth: Auth;
-let db: Firestore;
-let storage: FirebaseStorage;
+// Inicializa Firebase de forma segura (solo una instancia)
+const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
 
-// Initialize Firebase only on the client-side
-if (typeof window !== 'undefined' && !getApps().length) {
-  try {
-    app = initializeApp(firebaseConfig);
-    auth = getAuth(app);
-    db = getFirestore(app);
-    storage = getStorage(app);
-  } catch (error) {
-    console.error("Firebase initialization error:", error);
-  }
-} else if (typeof window !== 'undefined') {
-  app = getApp();
-  auth = getAuth(app);
-  db = getFirestore(app);
-  storage = getStorage(app);
-}
-
-export { app, auth, db, storage };
+// Exporta instancias listas para usar en toda la aplicación
+export const db = getFirestore(app);
+export const auth = getAuth(app);
+export const storage = getStorage(app);

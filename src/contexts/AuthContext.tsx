@@ -1,4 +1,3 @@
-
 "use client";
 
 import type { User as FirebaseUser } from "firebase/auth";
@@ -49,7 +48,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         uid, 
         email, 
         role,
-        displayName: displayName || email?.split('@')[0] || 'Usuario',
+        displayName: displayName || (email ? String(email).split('@')[0] : 'Usuario'),
         createdAt: new Date().toISOString(),
       }, { merge: true });
     } catch (error) {
@@ -64,28 +63,44 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user: FirebaseUser | null) => {
-      if (user) {
-        const userDocRef = doc(db, "users", user.uid);
-        const userDocSnap = await getDoc(userDocRef);
+      try {
+        if (user) {
+          const userDocRef = doc(db, "users", user.uid);
+          const userDocSnap = await getDoc(userDocRef);
 
-        let userProfile: UserProfile | null = null;
+          let userProfile: UserProfile | null = null;
 
-        if (userDocSnap.exists()) {
-          const userData = userDocSnap.data();
-          userProfile = { 
-            uid: user.uid, 
-            email: user.email, 
-            role: userData.role as UserRole,
-            displayName: userData.displayName,
-            createdAt: userData.createdAt,
-            isAdmin: userData.role === 'admin', // Lectura directa del rol desde la DB
-          };
+          if (userDocSnap.exists()) {
+            const userData = userDocSnap.data();
+            userProfile = { 
+              uid: user.uid, 
+              email: user.email, 
+              role: userData.role as UserRole,
+              displayName: userData.displayName,
+              createdAt: userData.createdAt,
+              isAdmin: userData.role === 'admin',
+            };
+          } else {
+            userProfile = {
+              uid: user.uid,
+              email: user.email,
+              role: null,
+              displayName: user.displayName || user.email?.split('@')[0] || "Usuario",
+              createdAt: "",
+              isAdmin: false,
+            };
+          }
+
+          setCurrentUser(userProfile);
+        } else {
+          setCurrentUser(null);
         }
-        setCurrentUser(userProfile);
-      } else {
+      } catch (error) {
+        console.error("Error al cargar el perfil del usuario:", error);
         setCurrentUser(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => unsubscribe();

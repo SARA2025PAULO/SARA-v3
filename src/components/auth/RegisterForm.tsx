@@ -3,7 +3,16 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
-import { auth, db } from "@/lib/firebase"; // db is needed here
+import { useToast } from "@/hooks/use-toast";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import { UserPlus } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import Link from "next/link";
+import { getAuth, createUserWithEmailAndPassword } from "firebase/auth";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -22,23 +31,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useToast } from "@/hooks/use-toast";
-import { useRouter } from "next/navigation";
-import type { UserRole } from "@/types";
-import { useAuth } from "@/contexts/AuthContext";
-import { UserPlus } from "lucide-react";
-import { Checkbox } from "@/components/ui/checkbox";
-import Link from "next/link";
-import { getFunctions, httpsCallable } from "firebase/functions";
-
 
 const formSchema = z.object({
-  displayName: z.string().min(2, { message: "El nombre debe tener al menos 2 caracteres."}),
+  displayName: z.string().min(2, { message: "El nombre debe tener al menos 2 caracteres." }),
   email: z.string().email({ message: "Por favor ingresa un correo válido." }),
   password: z.string().min(6, { message: "La contraseña debe tener al menos 6 caracteres." }),
   confirmPassword: z.string().min(6, { message: "La contraseña debe tener al menos 6 caracteres." }),
   role: z.enum(["Arrendador", "Inquilino"], { required_error: "Debes seleccionar un rol." }),
-  invitationCode: z.string().min(1, { message: "El código de invitación es requerido." }),
   acceptTerms: z.boolean().refine(val => val === true, {
     message: "Debes aceptar los términos y condiciones para continuar.",
   }),
@@ -60,33 +59,32 @@ export function RegisterForm() {
       password: "",
       confirmPassword: "",
       role: undefined,
-      invitationCode: "",
       acceptTerms: false,
     },
   });
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
-    const functions = getFunctions();
-    const registerWithInvitation = httpsCallable(functions, 'registerWithInvitation');
-
     try {
-      const result = await registerWithInvitation({
-        email: values.email,
-        password: values.password,
-        displayName: values.displayName,
-        role: values.role,
-        code: values.invitationCode,
+      const auth = getAuth();
+      const userCredential = await createUserWithEmailAndPassword(auth, values.email, values.password);
+
+      await updateUserProfileInFirestore(
+        userCredential.user.uid,
+        values.email,
+        values.role,
+        values.displayName
+      );
+
+      // Espera que el documento se refleje antes de redirigir
+      const userRef = doc(db, "users", userCredential.user.uid);
+      await getDoc(userRef);
+
+      toast({
+        title: "Registro Exitoso",
+        description: "Tu cuenta ha sido creada. Ahora puedes iniciar sesión.",
       });
 
-      if ((result.data as any).success) {
-        toast({
-          title: "Registro Exitoso",
-          description: "Tu cuenta ha sido creada. Ahora puedes iniciar sesión.",
-        });
-        router.push("/login?registered=true");
-      } else {
-        throw new Error((result.data as any).message || 'Ocurrió un error desconocido.');
-      }
+      router.push("/login?registered=true");
     } catch (error: any) {
       console.error("Error during registration:", error);
       toast({
@@ -98,125 +96,79 @@ export function RegisterForm() {
   }
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-        <FormField
-          control={form.control}
-          name="displayName"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Nombre Completo</FormLabel>
-              <FormControl>
-                <Input placeholder="Juan Pérez" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="email"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Correo Electrónico</FormLabel>
-              <FormControl>
-                <Input placeholder="tu@correo.com" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="password"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Contraseña</FormLabel>
-              <FormControl>
-                <Input type="password" placeholder="••••••••" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="confirmPassword"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Confirmar Contraseña</FormLabel>
-              <FormControl>
-                <Input type="password" placeholder="••••••••" {...field} />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-          control={form.control}
-          name="role"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Soy un...</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Selecciona tu rol" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="Arrendador">Arrendador (Propietario)</SelectItem>
-                  <SelectItem value="Inquilino">Inquilino (Busco arriendo)</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormDescription>
-                Esto determinará cómo usas S.A.R.A.
-              </FormDescription>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-        <FormField
-            control={form.control}
-            name="invitationCode"
-            render={({ field }) => (
-                <FormItem>
-                <FormLabel>Código de Invitación</FormLabel>
-                <FormControl>
-                    <Input placeholder="SARA-XXXXXXXX" {...field} />
-                </FormControl>
-                <FormMessage />
-                </FormItem>
-            )}
-        />
-        <FormField
-          control={form.control}
-          name="acceptTerms"
-          render={({ field }) => (
-            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
-              <FormControl>
-                <Checkbox
-                  checked={field.value}
-                  onCheckedChange={field.onChange}
-                />
-              </FormControl>
-              <div className="space-y-1 leading-none">
-                <FormLabel>
-                  Acepto los{" "}
-                  <Link href="/terminos-y-condiciones" className="text-blue-600 hover:underline" target="_blank">
-                    términos y condiciones
-                  </Link>
-                  .
-                </FormLabel>
-                <FormMessage />
-              </div>
-            </FormItem>
-          )}
-        />
-        <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting ? "Registrando..." : <> <UserPlus className="mr-2 h-4 w-4" /> Crear Cuenta </>}
-        </Button>
-      </form>
-    </Form>
+    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+      <FormField control={form.control} name="displayName" render={({ field }) => (
+        <FormItem>
+          <FormLabel>Nombre Completo</FormLabel>
+          <FormControl>
+            <Input placeholder="Juan Pérez" {...field} />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )} />
+      <FormField control={form.control} name="email" render={({ field }) => (
+        <FormItem>
+          <FormLabel>Correo Electrónico</FormLabel>
+          <FormControl>
+            <Input placeholder="tu@correo.com" {...field} />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )} />
+      <FormField control={form.control} name="password" render={({ field }) => (
+        <FormItem>
+          <FormLabel>Contraseña</FormLabel>
+          <FormControl>
+            <Input type="password" placeholder="••••••••" {...field} />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )} />
+      <FormField control={form.control} name="confirmPassword" render={({ field }) => (
+        <FormItem>
+          <FormLabel>Confirmar Contraseña</FormLabel>
+          <FormControl>
+            <Input type="password" placeholder="••••••••" {...field} />
+          </FormControl>
+          <FormMessage />
+        </FormItem>
+      )} />
+      <FormField control={form.control} name="role" render={({ field }) => (
+        <FormItem>
+          <FormLabel>Soy un...</FormLabel>
+          <Select onValueChange={field.onChange} defaultValue={field.value}>
+            <FormControl>
+              <SelectTrigger>
+                <SelectValue placeholder="Selecciona tu rol" />
+              </SelectTrigger>
+            </FormControl>
+            <SelectContent>
+              <SelectItem value="Arrendador">Arrendador (Propietario)</SelectItem>
+              <SelectItem value="Inquilino">Inquilino (Busco arriendo)</SelectItem>
+            </SelectContent>
+          </Select>
+          <FormDescription>
+            Esto determinará cómo usas S.A.R.A.
+          </FormDescription>
+          <FormMessage />
+        </FormItem>
+      )} />
+      <FormField control={form.control} name="acceptTerms" render={({ field }) => (
+        <FormItem className="flex items-start space-x-3 rounded-md border p-4 shadow-sm">
+          <FormControl>
+            <Checkbox checked={field.value} onCheckedChange={field.onChange} />
+          </FormControl>
+          <div className="space-y-1 leading-none">
+            <FormLabel>
+              Acepto los <Link href="/terminos-y-condiciones" className="text-blue-600 hover:underline" target="_blank">términos y condiciones</Link>.
+            </FormLabel>
+          </div>
+          <FormMessage />
+        </FormItem>
+      )} />
+      <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+        {form.formState.isSubmitting ? "Registrando..." : <><UserPlus className="mr-2 h-4 w-4" />Crear Cuenta</>}
+      </Button>
+    </form>
   );
 }
